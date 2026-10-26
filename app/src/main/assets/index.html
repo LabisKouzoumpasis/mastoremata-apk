@@ -28,7 +28,7 @@
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans','Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body{margin:0;background-color:var(--bg);background-image:var(--bg-img,none);background-size:var(--bg-size,auto);background-attachment:fixed;color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans','Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -114,6 +114,13 @@ ol.steps li{margin-bottom:6px}
 .stl.warn i{background:var(--warn)}
 .stl.bad i{background:var(--bad)}
 .res h2{margin-top:16px}
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.th{border:2px solid var(--line);border-radius:14px;padding:6px 6px 8px;background:var(--surface);color:var(--ink);font-size:.78rem;font-weight:600;line-height:1.25;text-align:center}
+.th[aria-pressed="true"]{border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-soft)}
+.th .pv{display:block;position:relative;height:58px;border-radius:9px;margin-bottom:6px;overflow:hidden;border:1px solid rgba(127,127,127,.25)}
+.th .pv i{position:absolute;left:6px;right:6px;top:6px;height:14px;border-radius:5px}
+.th .pv b{position:absolute;left:6px;right:6px;top:25px;bottom:6px;border-radius:5px}
+.th .pv u{position:absolute;right:5px;top:50%;width:16px;height:9px;margin-top:-4.5px;border-radius:5px}
 .sph{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 .sph img{aspect-ratio:4/3}
 .step .simg img{display:block;max-width:100%;max-height:42vh;margin:14px auto 0;border-radius:12px;object-fit:contain}
@@ -219,7 +226,7 @@ const amtIn=n=>n==null||n===''?'':String(n).replace('.',',');
 const KEY='mastoremata.v1';
 const NB=window.AndroidBridge||null;
 const DEF=()=>({v:1,tools:{},repairs:{},guides:{},skills:{},parts:{},done:{},hiddenLib:{},
-  settings:{theme:'auto',autoBackup:false,lastBackup:null,lastAutoBackup:null,lastOffsite:null}});
+  settings:{theme:'auto',autoBackup:false,lastBackup:null,lastAutoBackup:null,lastOffsite:null,updChecked:null,lastVer:''}});
 /* kind στη βάση → πεδίο του D */
 const KINDS={tool:'tools',repair:'repairs',guide:'guides',skill:'skills',part:'parts',done:'done'};
 function fromRecords(rec){const d=DEF();
@@ -870,8 +877,23 @@ const searchHtml=()=>{const r=search(searchQ);return norm(searchQ).length<2?'<p 
 function vSearch(){return `<input type="search" id="q" data-in="q" value="${esc(searchQ)}" placeholder="Εργαλείο, επισκευή, ανταλλακτικό…" aria-label="Αναζήτηση" autocomplete="off"><div class="res" id="res">${searchHtml()}</div>`;}
 
 /* ============ ΡΥΘΜΙΣΕΙΣ / ΑΝΤΙΓΡΑΦΑ ============ */
-function applyTheme(){const t=D.settings.theme||'auto',el=document.documentElement;if(t==='auto')el.removeAttribute('data-theme');else el.setAttribute('data-theme',t);
-  if(!NB)return;try{const cs=getComputedStyle(el),bg=cs.getPropertyValue('--bg').trim(),sf=cs.getPropertyValue('--surface').trim(),dark=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+/* Θέματα: τα ίδια με την Καθημερινότητα. Το καθένα αλλάζει όλη την παλέτα και βάζει διακριτικό μοτίβο φόντου (--bg-img).
+   Τα κλασικά (auto/light/dark) είναι στο :root του CSS. */
+const THEMES={
+ forest:{n:"Δάσος",e:"🌲",dark:false,v:{"--bg": "#E1E9D5", "--surface": "#F1F5E9", "--ink": "#1E2A1F", "--muted": "#4F5C49", "--line": "#BFCCAE", "--soft": "#D4DFC5", "--pri": "#2F5D3A", "--pri-ink": "#F3F7EC", "--pri-soft": "#D2E2CD", "--ok": "#3E6B20", "--ok-ink": "#FFFFFF", "--warn": "#8A5E0C", "--warn-bg": "#F1E5C6", "--bad": "#A4432B", "--bad-bg": "#F2DCD2", "--rail-l": "40%", "--rail-s": "32%", "--hero": "linear-gradient(135deg,#2F5D3A 0%,#4C7537 60%,#6F8A3E 100%)", "--hero-ink": "#F3F7EC", "--bg-img": "radial-gradient(120% 60% at 50% -10%,rgba(111,138,62,.20),transparent 60%)", "--s1": "#E6BF55", "--s2": "#92BB60", "--s3": "#2D7832"}},
+ night:{n:"Έναστρος ουρανός",e:"✨",dark:true,v:{"--bg": "#0D1330", "--surface": "#151D42", "--ink": "#E7EAF9", "--muted": "#A3ACD2", "--line": "#26305F", "--soft": "#1C2550", "--pri": "#F2C66D", "--pri-ink": "#1B1404", "--pri-soft": "#2E2C4D", "--ok": "#7DD3A6", "--ok-ink": "#0A1F15", "--warn": "#F7B46A", "--warn-bg": "#3A2B22", "--bad": "#FF8A80", "--bad-bg": "#3E1E33", "--rail-l": "68%", "--rail-s": "55%", "--hero": "linear-gradient(135deg,#262B72 0%,#51379A 55%,#8C4AA3 100%)", "--hero-ink": "#F7F3FF", "--bg-img": "radial-gradient(1.3px 1.3px at 12% 18%,rgba(255,255,255,.95),transparent 70%),radial-gradient(1px 1px at 72% 8%,rgba(255,255,255,.75),transparent 70%),radial-gradient(1.6px 1.6px at 38% 62%,rgba(255,236,190,.9),transparent 70%),radial-gradient(1px 1px at 88% 46%,rgba(255,255,255,.65),transparent 70%),radial-gradient(1px 1px at 55% 88%,rgba(255,255,255,.6),transparent 70%),radial-gradient(1.2px 1.2px at 25% 80%,rgba(200,215,255,.8),transparent 70%),radial-gradient(1px 1px at 64% 34%,rgba(255,255,255,.5),transparent 70%)", "--bg-size": "240px 240px", "--s1": "#C9A43F", "--s2": "#6E9B45", "--s3": "#4FAE55"}},
+ kitchen:{n:"Ζεστή κουζίνα",e:"🍲",dark:false,v:{"--bg": "#F2E4D0", "--surface": "#FFF5E8", "--ink": "#3A2A1F", "--muted": "#6E5A49", "--line": "#DFC8AA", "--soft": "#ECD9C1", "--pri": "#9C452F", "--pri-ink": "#FFF8F1", "--pri-soft": "#F4DCD1", "--ok": "#5F6F22", "--ok-ink": "#FFFFFF", "--warn": "#875A08", "--warn-bg": "#F7E8C6", "--bad": "#9E3328", "--bad-bg": "#F5DAD3", "--rail-l": "46%", "--rail-s": "40%", "--hero": "linear-gradient(135deg,#A2452E 0%,#C26843 100%)", "--hero-ink": "#FFF8F1", "--bg-img": "repeating-linear-gradient(0deg,rgba(168,77,53,.05) 0 12px,transparent 12px 24px),repeating-linear-gradient(90deg,rgba(168,77,53,.05) 0 12px,transparent 12px 24px)", "--s1": "#E6BF55", "--s2": "#92BB60", "--s3": "#2D7832"}},
+ spice:{n:"Μπαχαρικά",e:"🌶️",dark:true,v:{"--bg": "#21150E", "--surface": "#2D1F16", "--ink": "#F4E7D7", "--muted": "#C7AE96", "--line": "#47331F", "--soft": "#37271B", "--pri": "#E6A532", "--pri-ink": "#261803", "--pri-soft": "#4A3418", "--ok": "#AFC468", "--ok-ink": "#1A2008", "--warn": "#F28B4B", "--warn-bg": "#4A2A17", "--bad": "#F06A5C", "--bad-bg": "#4C1E19", "--rail-l": "62%", "--rail-s": "50%", "--hero": "linear-gradient(135deg,#8A3317 0%,#A84D24 55%,#B5681E 100%)", "--hero-ink": "#FFF6E8", "--bg-img": "radial-gradient(90% 50% at 0% 0%,rgba(230,165,50,.12),transparent 60%),radial-gradient(80% 50% at 100% 100%,rgba(158,59,30,.16),transparent 60%)", "--s1": "#C9A43F", "--s2": "#6E9B45", "--s3": "#4FAE55"}},
+ sun:{n:"Λιακάδα",e:"☀️",dark:false,v:{"--bg": "#FFF1C9", "--surface": "#FFFAE6", "--ink": "#2E2A1C", "--muted": "#625A40", "--line": "#EBD48A", "--soft": "#FFE8AE", "--pri": "#A44A00", "--pri-ink": "#FFFFFF", "--pri-soft": "#FFE2C2", "--ok": "#2E7444", "--ok-ink": "#FFFFFF", "--warn": "#946200", "--warn-bg": "#FFF0C2", "--bad": "#B83427", "--bad-bg": "#FCE0DB", "--rail-l": "46%", "--rail-s": "62%", "--hero": "linear-gradient(135deg,#FFD24A 0%,#FFAA2B 60%,#FF8A1A 100%)", "--hero-ink": "#3B2500", "--bg-img": "radial-gradient(70% 45% at 100% 0%,rgba(255,201,60,.38),transparent 70%)", "--s1": "#E6BF55", "--s2": "#92BB60", "--s3": "#2D7832"}},
+ aegean:{n:"Αιγαίο",e:"🌊",dark:false,v:{"--bg": "#E3EEF7", "--surface": "#F7FBFE", "--ink": "#12263A", "--muted": "#4A6279", "--line": "#BDD3E6", "--soft": "#D2E4F2", "--pri": "#0D5EA6", "--pri-ink": "#FFFFFF", "--pri-soft": "#D5E6F6", "--ok": "#14706A", "--ok-ink": "#FFFFFF", "--warn": "#8C590C", "--warn-bg": "#FBEDD3", "--bad": "#B03726", "--bad-bg": "#F8DED8", "--rail-l": "44%", "--rail-s": "50%", "--hero": "linear-gradient(135deg,#0D5EA6 0%,#1679BA 60%,#2A93C9 100%)", "--hero-ink": "#FFFFFF", "--bg-img": "radial-gradient(120% 50% at 50% 110%,rgba(22,121,186,.14),transparent 60%)", "--s1": "#E6BF55", "--s2": "#92BB60", "--s3": "#2D7832"}}};
+(()=>{const st=document.createElement('style');st.textContent=Object.entries(THEMES).map(([k,t])=>`:root[data-theme="${k}"]{color-scheme:${t.dark?'dark':'light'};${Object.entries(t.v).map(([a,b])=>a+':'+b).join(';')}}`).join('\n');document.head.appendChild(st);})();
+const CLASSIC={auto:['Όπως το κινητό','🌗'],light:['Φωτεινό','🔆'],dark:['Σκούρο','🌙']};
+function themeCards(cur){const pv=(bg,img,size,hero,surf,pri)=>`<span class="pv" style="background-color:${bg};background-image:${img||'none'};background-size:${size||'auto'}"><i style="background:${hero}"></i><b style="background:${surf}"><u style="background:${pri}"></u></b></span>`;
+  const cl={auto:pv('#F3F1EC','linear-gradient(135deg,transparent 50%,#161514 50%)','auto','#A94B1A','#FFFFFF','#3F6A2A'),light:pv('#F3F1EC','','','#A94B1A','#FFFFFF','#3F6A2A'),dark:pv('#161514','','','#F0A06A','#201E1C','#8CC06A')};
+  return Object.entries(CLASSIC).map(([k,[n,e]])=>`<button class="th" type="button" data-a="setThemeTo" data-v="${k}" aria-pressed="${cur===k}">${cl[k]}<span>${e} ${n}</span></button>`).join('')
+   +Object.entries(THEMES).map(([k,t])=>`<button class="th" type="button" data-a="setThemeTo" data-v="${k}" aria-pressed="${cur===k}">${pv(t.v['--bg'],t.v['--bg-img'],t.v['--bg-size'],t.v['--hero'],t.v['--surface'],t.v['--pri'])}<span>${t.e} ${t.n}</span></button>`).join('');}
+function applyTheme(){let t=D.settings.theme||'auto';if(!CLASSIC[t]&&!THEMES[t])t='auto';const el=document.documentElement;if(t==='auto')el.removeAttribute('data-theme');else el.setAttribute('data-theme',t);
+  if(!NB)return;try{const cs=getComputedStyle(el),bg=cs.getPropertyValue('--bg').trim(),sf=cs.getPropertyValue('--surface').trim(),dark=THEMES[t]?THEMES[t].dark:t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
     if(/^#[0-9a-f]{6}$/i.test(bg)&&/^#[0-9a-f]{6}$/i.test(sf))NB.setBars(bg,sf,dark);else NB.setTheme(dark);}catch(e){}}
 const backupObj=()=>({app:'mastoremata',v:1,exported:new Date().toISOString(),data:D});
 const backupJson=()=>JSON.stringify(backupObj());
@@ -905,10 +927,13 @@ window.__onBackupFolder=name=>{if(name){D.settings.autoBackup=true;save();autoBa
 function vSettings(){const s=D.settings,t=today(),folder=NB?NB.backupFolderName():'',nPh=NB&&typeof NB.photoCount==='function'?NB.photoCount():Object.keys(localPhotos()).length;
   const L=[],line=(st,x)=>L.push(`<div class="stl ${st}"><i></i><span>${x}</span></div>`);
   if(NB){if(!s.autoBackup||!folder)line('warn','Αυτόματο αντίγραφο: κλειστό');else line(s.lastAutoBackup&&diff(s.lastAutoBackup,t)<=2?'ok':'warn',`Αυτόματο αντίγραφο: ${s.lastAutoBackup?rel(s.lastAutoBackup):'δεν έγινε ακόμα'}`);}
+  if(canUpd())line(s.updChecked&&diff(s.updChecked,t)<=7?'ok':'warn',`Έλεγχος για νέα έκδοση: ${s.updChecked?rel(s.updChecked):'δεν έγινε ακόμα'}${upd?` · υπάρχει η ${esc(upd.version)}`:''}`);
   line(s.lastOffsite&&diff(s.lastOffsite,t)<=30?'ok':'warn',`Αντίγραφο εκτός κινητού: ${s.lastOffsite?rel(s.lastOffsite):'ποτέ'}`);
   const sf=safetyInfo();
   return `<div class="card"><h3>Κατάσταση</h3>${L.join('')}<div class="small muted" style="margin-top:6px">${Object.keys(D.repairs).length} επισκευές · ${Object.keys(D.tools).length} εργαλεία · ${Object.keys(D.parts).length} ανταλλακτικά · ${nPh} φωτογραφίες</div></div>
-  <div class="card"><h3>Εμφάνιση</h3>${segBtnsUi('theme',[['auto','Όπως το κινητό'],['light','Φωτεινό'],['dark','Σκούρο']],s.theme||'auto')}</div>
+  <div class="card"><h3>Εμφάνιση</h3><div class="themes">${themeCards(s.theme||'auto')}</div></div>
+  ${canUpd()?`<div class="card"><h3>Ενημερώσεις</h3><p class="small muted" style="margin-top:0">Έκδοση ${esc(NB.appVersion())}. Η εφαρμογή ελέγχει μόνη της μία φορά τη μέρα, όταν έχει σύνδεση.${s.updChecked?` Τελευταίος έλεγχος: ${dFmt(s.updChecked)}.`:''}</p>
+   ${upd?`<p style="margin:0 0 8px"><b>Νέα έκδοση ${esc(upd.version)}</b></p>`:''}<div class="actions">${upd?'<button class="btn" type="button" data-a="updInstall">Ενημέρωση</button>':''}<button class="btn ghost" type="button" data-a="updCheck">Έλεγχος τώρα</button></div></div>`:''}
   <div class="card"><h3>Αντίγραφο ασφαλείας</h3><p class="small muted" style="margin-top:0">${NB?'Τα δεδομένα και οι φωτογραφίες είναι μόνο μέσα στην εφαρμογή. Αν την απεγκαταστήσεις ή αλλάξεις κινητό, χρειάζεσαι αντίγραφο. Το αντίγραφο είναι ένα αρχείο .zip με όλα, και τις φωτογραφίες.':'Όλα τα δεδομένα μένουν μόνο σε αυτόν τον browser.'}${s.lastBackup?` Τελευταίο: ${dFmt(s.lastBackup)}.`:''}</p>
    ${NB?`<label class="toggle"><input type="checkbox" data-in="setAuto"${s.autoBackup&&folder?' checked':''}> Αυτόματο αντίγραφο κάθε μέρα</label>
     <div class="small">Φάκελος: <b>${esc(folder||'δεν έχει οριστεί')}</b>${s.lastAutoBackup?` · τελευταίο ${dFmt(s.lastAutoBackup)}`:''}</div><div class="small muted">Γίνεται μία φορά τη μέρα, όταν ανοίγεις την εφαρμογή. Κρατιούνται των 7 τελευταίων ημερών και, πιο πίσω, ένα ανά εβδομάδα για 2 μήνες.</div>
@@ -917,7 +942,28 @@ function vSettings(){const s=D.settings,t=today(),folder=NB?NB.backupFolderName(
    ${sf?`<p class="small" style="margin:10px 0 0"><button class="link" type="button" data-a="undoSafety">Αναίρεση της ${sf.why==='wipe'?'διαγραφής':'επαναφοράς'} της ${dFmt(sf.day)}</button></p>`:''}</div>
   ${Object.keys(D.hiddenLib).length?`<div class="card"><h3>Έτοιμοι οδηγοί</h3><p class="small muted" style="margin-top:0">Κρυμμένοι: ${Object.keys(D.hiddenLib).length}.</p><button class="btn ghost sm" type="button" data-a="libShowAll">Εμφάνιση όλων</button></div>`:''}
   <div class="card"><h3>Διαγραφή</h3><button class="btn warn" type="button" data-a="wipe">Διαγραφή όλων των δεδομένων</button></div>
-  <p class="small muted">Μαστορέματα ${NB?'· Android '+esc(NB.appVersion()):'· έκδοση browser'} · λειτουργεί χωρίς σύνδεση</p>`;}
+  <p class="small muted">Μαστορέματα ${NB?'· Android '+esc(NB.appVersion()):'· έκδοση browser'} · λειτουργεί χωρίς σύνδεση (internet μόνο για λήψη οδηγού και ενημερώσεις)</p>`;}
+
+/* ============ ενημερώσεις (Updater.kt) ============ */
+/* Το Android ελέγχει τις εκδόσεις στα Releases του GitHub· upd = η νεότερη έκδοση που βρέθηκε, αλλιώς null. */
+let upd=null,updManual=false,updGo=false;
+const canUpd=()=>!!(NB&&typeof NB.checkUpdate==='function');
+function newerVer(a,b){const x=String(a).split('.').map(n=>parseInt(n)||0),y=String(b).split('.').map(n=>parseInt(n)||0);
+  for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)>(y[i]||0);}return false;}
+function updCheck(manual){if(!canUpd())return;if(!manual&&D.settings.updChecked===today())return;updManual=manual;try{NB.checkUpdate();}catch(e){}}
+window.__onUpdate=j=>{const prev=upd;if(j&&j.version){D.settings.updChecked=today();upd=newerVer(j.version,NB.appVersion())?j:null;save();
+    if(updManual)toast(upd?`Βρέθηκε νέα έκδοση ${upd.version}`:'Έχεις την τελευταία έκδοση');}
+  else if(updManual)toast('Δεν βρέθηκε έκδοση. Έχεις σύνδεση στο internet;');
+  /* «Ενημέρωση»: πάντα η τελευταία έκδοση εκείνη τη στιγμή (αν ο έλεγχος αποτύχει, αυτή που είχε βρεθεί). */
+  if(updGo){updGo=false;const t=j&&j.version?upd:prev;if(t){toast(`Λήψη της έκδοσης ${t.version}…`);NB.installUpdate(t.url,t.version);}else toast('Έχεις ήδη την τελευταία έκδοση');}
+  updManual=false;if(!sheet.open&&ui.tab==='settings')render();};
+window.__onUpdateInstall=r=>{if(r==='started')toast('Εγκατάσταση… Η εφαρμογή θα κλείσει για λίγο· άνοιξέ τη ξανά από το εικονίδιο.');
+  else if(r==='perm')openSheet(`<h3>Μία ρύθμιση, μόνο την πρώτη φορά</h3><p>Στην οθόνη που άνοιξε, άναψε το «Να επιτρέπεται από αυτή την πηγή». Μετά γύρνα εδώ και πάτα ξανά «Ενημέρωση».</p><div class="actions"><button class="btn grow" type="button" data-a="close">Εντάξει</button></div>`);
+  else if(r==='aborted')openSheet(`<h3>Η ενημέρωση ακυρώθηκε</h3><p>Αν δεν την ακύρωσες εσύ, μάλλον τη μπλόκαρε ο <b>Αυτόματος αποκλεισμός</b> της Samsung. Κλείσ’ τον από Ρυθμίσεις → Ασφάλεια και απόρρητο → Αυτόματος αποκλεισμός και πάτα ξανά «Ενημέρωση».</p><div class="actions"><button class="btn grow" type="button" data-a="close">Εντάξει</button></div>`);
+  else toast('Δεν έγινε η ενημέρωση: '+r);};
+/* Μετά από ενημέρωση: ένα μήνυμα με τη νέα έκδοση (χωρίς ειδοποίηση του Android). */
+function noteUpdated(){if(!NB)return;let v='';try{v=NB.appVersion();}catch(e){}if(!v)return;const was=D.settings.lastVer;
+  if(was!==v){D.settings.lastVer=v;save();if(was&&newerVer(v,was)){upd=null;setTimeout(()=>toast(`Ενημερώθηκε στην έκδοση ${v}`),600);}}}
 
 /* ============ οθόνες ============ */
 const TITLES={tools:'Εργαλεία',repairs:'Επισκευές',guides:'Οδηγοί',skills:'Δεξιότητες',parts:'Ανταλλακτικά',search:'Αναζήτηση',settings:'Ρυθμίσεις'};
@@ -935,6 +981,9 @@ const A={
  segPick:el=>{const g=el.closest('.seg');g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===el)));
    if(g.dataset.g==='cond'){const w=$('#tLentWrap');if(w)w.hidden=el.dataset.v!=='lent';}
    if(g.dataset.skill){const s=D.skills[g.dataset.skill];if(s){s.status=el.dataset.v;save();render();}}},
+ setThemeTo:el=>{D.settings.theme=el.dataset.v;save();applyTheme();render();},
+ updCheck:()=>{toast('Έλεγχος…');updCheck(true);},
+ updInstall:()=>{if(!upd)return;updGo=true;toast('Έλεγχος για την τελευταία έκδοση…');NB.checkUpdate();},
  uiSeg:el=>{const k=el.dataset.k;if(k==='theme'){D.settings.theme=el.dataset.v;save();applyTheme();render();return;}ui[k]=el.dataset.v;render();},
  /* εργαλεία */
  toolNew:()=>toolSheet(null),
@@ -1051,7 +1100,7 @@ const C={
 /* ============ Android ============ */
 window.__back=()=>{if($('#pv').classList.contains('on')){closePhoto();return true;}if(stp){stepClose();return true;}if(sheet.open){closeSheet();return true;}
   if(ui.tab==='search'||ui.tab==='settings'){ui.tab=prevTab||'repairs';render();window.scrollTo({top:0});return true;}return false;};
-window.__resume=()=>{checkShared();setTimeout(()=>autoBackup(false),1500);};
+window.__resume=()=>{checkShared();setTimeout(()=>autoBackup(false),1500);setTimeout(()=>updCheck(false),2000);};
 
 /* ============ σύνδεση ============ */
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.id==='pv'&&e.target!==el&&e.target.tagName!=='BUTTON')return;const f=A[el.dataset.a];if(f){e.preventDefault();f(el,e);}});
@@ -1065,7 +1114,8 @@ setNavH();window.addEventListener('resize',setNavH);
 window.addEventListener('scroll',()=>{document.querySelector('header.top').classList.toggle('sc',window.scrollY>4);},{passive:true});
 if(NB&&!lastRec.size)lastRec=toRecords(D);
 save();applyTheme();render();
-if(NB){setTimeout(()=>autoBackup(false),2500);setTimeout(prunePhotos,4000);}
+noteUpdated();
+if(NB){setTimeout(()=>autoBackup(false),2500);setTimeout(()=>updCheck(false),3000);setTimeout(prunePhotos,4000);}
 </script>
 </body>
 </html>

@@ -112,6 +112,27 @@ class Bridge(private val act: MainActivity) {
         }).start()
     }
 
+    /** Ελέγχει για νεότερη έκδοση· η απάντηση έρχεται στο window.__onUpdate({version,url,size} ή null). */
+    @JavascriptInterface fun checkUpdate() {
+        Thread(Runnable {
+            val r = try { Updater.latest() } catch (e: Exception) { null }
+            act.js("window.__onUpdate&&window.__onUpdate(" + (r?.toString() ?: "null") + ")")
+        }).start()
+    }
+
+    /** Κατεβάζει και εγκαθιστά· η απάντηση στο window.__onUpdateInstall('started'|'perm'|μήνυμα λάθους). */
+    @JavascriptInterface fun installUpdate(url: String, version: String) {
+        if (!act.packageManager.canRequestPackageInstalls()) {
+            act.runOnUiThread(Runnable { act.openInstallSettings() })
+            act.js("window.__onUpdateInstall&&window.__onUpdateInstall('perm')")
+            return
+        }
+        Thread(Runnable {
+            val err = try { Updater.install(act, url) } catch (e: Exception) { e.javaClass.simpleName }
+            act.js("window.__onUpdateInstall&&window.__onUpdateInstall(" + JSONObject.quote(err ?: "started") + ")")
+        }).start()
+    }
+
     @JavascriptInterface fun appVersion(): String {
         return try {
             act.packageManager.getPackageInfo(act.packageName, 0).versionName ?: "1.0"

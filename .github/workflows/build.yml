@@ -11,6 +11,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Προαιρετικό: κλειδί για το δημόσιο αποθετήριο εκδόσεων mastoremata-releases (ενημέρωση μέσα από την εφαρμογή,
+      # όπως στην Καθημερινότητα). Αν το mastoremata-apk γίνει δημόσιο, δεν χρειάζεται.
+      APK_REPO_TOKEN: ${{ secrets.APK_REPO_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +62,16 @@ jobs:
       - name: Δημοσίευση στα Releases
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Μαστορέματα 1.0.${{ github.run_number }}
+          files: Mastoremata-1.0.${{ github.run_number }}.apk
+
+      - name: Δημοσίευση στο δημόσιο αποθετήριο εκδόσεων
+        if: env.APK_REPO_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: LabisKouzoumpasis/mastoremata-releases
+          token: ${{ secrets.APK_REPO_TOKEN }}
           tag_name: v1.0.${{ github.run_number }}
           name: Μαστορέματα 1.0.${{ github.run_number }}
           files: Mastoremata-1.0.${{ github.run_number }}.apk

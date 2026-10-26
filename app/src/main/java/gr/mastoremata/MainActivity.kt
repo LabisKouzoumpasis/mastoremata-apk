@@ -25,6 +25,8 @@ import java.io.File
 class MainActivity : Activity() {
 
     companion object {
+        /** Για το UpdateReceiver (μηνύματα προς τη σελίδα όσο είναι ανοιχτή). */
+        @JvmStatic var instance: MainActivity? = null
         private const val REQ_SAVE = 11
         private const val REQ_OPEN = 12
         private const val REQ_TREE = 15
@@ -47,6 +49,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
         camName = savedInstanceState?.getString("camName")
         web = WebView(this)
         setContentView(web)
@@ -102,6 +105,19 @@ class MainActivity : Activity() {
         val p = pendingShare ?: return
         pendingShare = null
         web.evaluateJavascript("window.__onShared&&window.__onShared(" + JSONObject.quote(p[0]) + "," + JSONObject.quote(p[1]) + ")", null)
+    }
+
+    override fun onDestroy() {
+        if (instance === this) instance = null
+        super.onDestroy()
+    }
+
+    /** Η ρύθμιση «Εγκατάσταση άγνωστων εφαρμογών» για τα Μαστορέματα (μία φορά, για τις ενημερώσεις). */
+    fun openInstallSettings() {
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + packageName)))
+        } catch (e: ActivityNotFoundException) {
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

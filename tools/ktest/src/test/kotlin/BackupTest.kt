@@ -94,3 +94,27 @@ class WebTest {
         assertNull(gr.mastoremata.Web.readLimited(java.io.ByteArrayInputStream(ByteArray(200)), 100))
     }
 }
+
+class UpdaterTest {
+    @Test fun versions() {
+        assertTrue(gr.mastoremata.Updater.newer("1.0.10", "1.0.9"))
+        assertFalse(gr.mastoremata.Updater.newer("1.0.7", "1.0.7"))
+        assertFalse(gr.mastoremata.Updater.newer("1.0.6", "1.0.7"))
+        assertTrue(gr.mastoremata.Updater.newer("1.1", "1.0.99"))
+    }
+
+    @Test fun parseRelease() {
+        val j = gr.mastoremata.Updater.parse("""{"tag_name":"v1.0.12","assets":[{"name":"notes.txt","browser_download_url":"x"},{"name":"Mastoremata-1.0.12.apk","browser_download_url":"https://github.com/LabisKouzoumpasis/mastoremata-apk/releases/download/v1.0.12/Mastoremata-1.0.12.apk","size":40000}]}""")!!
+        assertEquals("1.0.12", j.getString("version"))
+        assertTrue(j.getString("url").endsWith("Mastoremata-1.0.12.apk"))
+        assertNull(gr.mastoremata.Updater.parse("""{"tag_name":"v1","assets":[]}"""))
+    }
+
+    @Test fun onlyOurApks() {
+        assertTrue(gr.mastoremata.Updater.allowedUrl("https://github.com/LabisKouzoumpasis/mastoremata-apk/releases/download/v1.0.12/Mastoremata-1.0.12.apk"))
+        assertTrue(gr.mastoremata.Updater.allowedUrl("https://github.com/LabisKouzoumpasis/mastoremata-releases/releases/download/v1.0.12/Mastoremata-1.0.12.apk"))
+        assertFalse(gr.mastoremata.Updater.allowedUrl("https://github.com/someone/else/releases/download/v1/x.apk"))
+        assertFalse(gr.mastoremata.Updater.allowedUrl("http://github.com/LabisKouzoumpasis/mastoremata-apk/releases/download/v1/x.apk"))
+        assertFalse(gr.mastoremata.Updater.allowedUrl("https://evil.com/LabisKouzoumpasis/mastoremata-apk/releases/download/v1/x.apk"))
+    }
+}
