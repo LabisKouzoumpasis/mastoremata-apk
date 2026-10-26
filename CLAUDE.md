@@ -24,11 +24,14 @@ app/src/main/java/gr/mastoremata/
   Photos.kt        Φωτογραφίες στο files/photos: μικραίνουν στα 1600 px, γυρίζουν κατά EXIF, JPEG 82. Ονόματα `Photos.NAME`.
   Backup.kt        Αντίγραφα .zip (data.json + photos/). Αυτόματα σε φάκελο (SAF), ένα τη μέρα· κρατά 7 ημέρες +
                    ένα ανά εβδομάδα για 8 εβδομάδες (`toDelete`). `unzip` δεν αντικαθιστά υπάρχουσες φωτογραφίες.
+  Web.kt           Λήψη σελίδας/φωτογραφίας ΜΟΝΟ όταν ο χρήστης μοιράζεται σύνδεσμο οδηγού (fetchUrl/fetchPhotos στο Bridge):
+                   μόνο http/https, ανακατευθύνσεις ≤6, όρια 4 MB κείμενο / 15 MB εικόνα, charset από το Content-Type.
   ShareFiles.kt    ShareProvider (δικός μας μικρός FileProvider): `share/` μόνο ανάγνωση (αντίγραφο προς Drive),
                    `cam/` και εγγραφή (εκεί γράφει η κάμερα). ChooserReceiver (ποια εφαρμογή διαλέχτηκε → `consumeShared`).
 ```
 Πακέτο / applicationId: `gr.mastoremata`. Καμία εξάρτηση AndroidX. minSdk 26, targetSdk/compileSdk 34.
-**Καμία άδεια** στο manifest: η κάμερα ανοίγει με intent χωρίς CAMERA (αν δηλωθεί CAMERA χωρίς να δοθεί, το intent αποτυγχάνει).
+Μόνη άδεια: **INTERNET**, για τη λήψη οδηγού από σύνδεσμο. Η κάμερα ανοίγει με intent χωρίς CAMERA (αν δηλωθεί CAMERA χωρίς
+να δοθεί, το intent αποτυγχάνει).
 Εικονίδιο: adaptive (vector κλειδί σε `drawable/ic_launcher_fg.xml`, `ic_launcher_mono.xml`, φόντο `@color/icon_bg`) — προσωρινό.
 
 ## Χτίσιμο και έκδοση
@@ -42,5 +45,5 @@ app/src/main/java/gr/mastoremata/
 ## Τεστ
 `cd tools/ktest && gradle test` — μεταγλωττίζει όλο το Kotlin με τις κλάσεις του Android 14 (Robolectric android-all
 από το Maven Central, χωρίς SDK) και τρέχει τεστ JVM: `Backup.toDelete`, zip ↔ unzip με φωτογραφίες, απόρριψη
-ονομάτων σαν `../`, `Photos.prune`, `Photos.sampleSize`. Τρέξε τα πριν από κάθε push που αλλάζει Kotlin.
+ονομάτων σαν `../`, `Photos.prune`, `Photos.sampleSize`, `Web` (charset, μόνο http/https, όριο μεγέθους). Τρέξε τα πριν από κάθε push που αλλάζει Kotlin.
 Τα resources (XML) ελέγχονται μόνο στο κανονικό χτίσιμο (GitHub Actions). Κάμερα/συλλογή/SAF μόνο σε συσκευή.

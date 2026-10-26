@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Καμία άδεια: η κάμερα ανοίγει με ACTION_IMAGE_CAPTURE (χωρίς CAMERA) και η συλλογή με τον επιλογέα του συστήματος. -->
+    <!-- Internet ΜΟΝΟ όταν ο χρήστης μοιράζεται/δίνει σύνδεσμο οδηγού (fetchUrl, fetchPhotos). Τίποτα στο παρασκήνιο.
+         Η κάμερα ανοίγει με ACTION_IMAGE_CAPTURE (χωρίς CAMERA) και η συλλογή με τον επιλογέα του συστήματος. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="@string/app_name"

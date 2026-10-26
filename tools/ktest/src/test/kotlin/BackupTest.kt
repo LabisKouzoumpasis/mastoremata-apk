@@ -74,3 +74,23 @@ class BackupTest {
         assertTrue(Photos.NAME.matches(Photos.newName()))
     }
 }
+
+class WebTest {
+    @Test fun charsetFromContentType() {
+        assertEquals("UTF-8", gr.mastoremata.Web.charset(null))
+        assertEquals("windows-1253", gr.mastoremata.Web.charset("text/html; charset=windows-1253"))
+        assertEquals("utf-8", gr.mastoremata.Web.charset("text/html;charset=\"utf-8\""))
+    }
+
+    @Test fun onlyHttp() {
+        assertTrue(gr.mastoremata.Web.allowed("https://www.ifixit.com/Guide/x/1"))
+        assertFalse(gr.mastoremata.Web.allowed("file:///data/data/gr.mastoremata/databases/mastoremata.db"))
+        assertFalse(gr.mastoremata.Web.allowed("content://x/y"))
+        assertNull(gr.mastoremata.Web.text("file:///etc/passwd"))
+    }
+
+    @Test fun sizeLimit() {
+        assertEquals(10, gr.mastoremata.Web.readLimited(java.io.ByteArrayInputStream(ByteArray(10)), 100)!!.size)
+        assertNull(gr.mastoremata.Web.readLimited(java.io.ByteArrayInputStream(ByteArray(200)), 100))
+    }
+}

@@ -114,6 +114,9 @@ ol.steps li{margin-bottom:6px}
 .stl.warn i{background:var(--warn)}
 .stl.bad i{background:var(--bad)}
 .res h2{margin-top:16px}
+.sph{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.sph img{aspect-ratio:4/3}
+.step .simg img{display:block;max-width:100%;max-height:42vh;margin:14px auto 0;border-radius:12px;object-fit:contain}
 .box{border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:.94rem}
 .box.warn{background:var(--warn-bg)}
 .box.warn b{color:var(--warn)}
@@ -177,7 +180,7 @@ dialog.sheet > .actions:last-child{position:sticky;bottom:calc(-18px - env(safe-
 
 <div class="step" id="step">
   <div class="stop"><b id="stTitle"></b><button class="btn ghost sm" type="button" data-a="stepClose">Κλείσιμο</button></div>
-  <div class="sbody"><div class="muted" id="stNum" style="font-weight:600;margin-bottom:8px"></div><div class="stext" id="stText"></div><div class="stip" id="stTip" hidden></div></div>
+  <div class="sbody"><div class="muted" id="stNum" style="font-weight:600;margin-bottom:8px"></div><div class="stext" id="stText"></div><div class="stip" id="stTip" hidden></div><div class="simg" id="stImg"></div></div>
   <div class="snav"><button class="btn ghost" type="button" data-a="stepPrev" id="stPrev">Πίσω</button><button class="btn" type="button" data-a="stepNext" id="stNext">Επόμενο</button></div>
 </div>
 <div class="pv" id="pv" data-a="pvClose"><img id="pvImg" alt=""><button class="btn ghost sm" type="button" data-a="pvClose">Κλείσιμο</button></div>
@@ -251,9 +254,10 @@ let LP=null;const localPhotos=()=>{if(!LP){try{LP=JSON.parse(localStorage.getIte
 const photoSrc=n=>{if(NB){try{return NB.photoUrl(n)||'';}catch(e){return '';}}return localPhotos()[n]||'';};
 const imgTag=(n,cls)=>{const s=photoSrc(n);return s?`<img class="${cls||''}" src="${esc(s)}" alt="" loading="lazy">`:`<span class="${cls||''}" style="display:grid;place-items:center">📷</span>`;};
 /* Όλες οι φωτογραφίες που αναφέρει ένα σύνολο δεδομένων (για να μη σβηστούν). */
-function photoRefs(d){const s=new Set();for(const r of Object.values((d&&d.repairs)||{}))for(const p of r.photos||[])s.add(p);return s;}
+function photoRefs(d){const s=new Set();for(const r of Object.values((d&&d.repairs)||{}))for(const p of r.photos||[])s.add(p);
+  for(const g of Object.values((d&&d.guides)||{}))for(const m of String(g.steps||'').matchAll(/^\s*📷\s*(\S+)\s*$/gm))s.add(m[1]);return s;}
 /* Η JS λέει στο Android ποιες φωτογραφίες χρειάζονται· οι υπόλοιπες σβήνονται. Μόνο αν φόρτωσαν σωστά τα δεδομένα. */
-function prunePhotos(){if(!NB||typeof NB.prunePhotos!=='function'||!loadOk||!Object.keys(D.repairs).length)return;
+function prunePhotos(){if(!NB||typeof NB.prunePhotos!=='function'||!loadOk||(!Object.keys(D.repairs).length&&!Object.keys(D.guides).length))return;
   const keep=photoRefs(D),sf=safetyInfo();if(sf)for(const p of photoRefs(sf.data))keep.add(p);
   try{NB.prunePhotos(JSON.stringify([...keep]));}catch(e){}}
 function fileToJpeg(f){return new Promise(res=>{const r=new FileReader();r.onerror=()=>res(null);r.onload=()=>{const img=new Image();img.onerror=()=>res(null);
@@ -268,6 +272,9 @@ function pickPhotos(){if(NB)NB.pickPhotos();else{const i=$('#fileGal');i.value='
    ανοιχτή η κάμερα), ανοίγει νέα επισκευή με τις φωτογραφίες. */
 window.__onPhotos=list=>{list=(list||[]).filter(Boolean);if(!list.length)return;
   if(draft&&sheet.open&&$('#rPhotos')){draft.photos.push(...list);drawPhotos();toast(list.length>1?`Προστέθηκαν ${list.length} φωτογραφίες`:'Προστέθηκε η φωτογραφία');}
+  else if(sheet.open&&$('#gSteps')){/* Οδηγός: η φωτογραφία μπαίνει ως γραμμή «📷 όνομα» κάτω από τη γραμμή του δρομέα. */
+    const ta=$('#gSteps'),v=ta.value,pos=Math.min(ta.selectionStart==null?v.length:ta.selectionStart,v.length);let e=v.indexOf('\n',pos);if(e<0)e=v.length;
+    ta.value=v.slice(0,e)+(e>0?'\n':'')+list.map(n=>'📷 '+n).join('\n')+v.slice(e);toast('Η φωτογραφία μπήκε κάτω από το βήμα');}
   else repairEdit(null,list);};
 function showPhoto(n){const s=photoSrc(n);if(!s)return;$('#pvImg').src=s;$('#pv').classList.add('on');}
 function closePhoto(){$('#pv').classList.remove('on');$('#pvImg').removeAttribute('src');}
@@ -621,9 +628,11 @@ const LIBMAP=Object.fromEntries(LIB.map(g=>[g.id,Object.assign({lib:true},g,{ste
 const guideOf=id=>(id&&(D.guides[id]||LIBMAP[id]))||null;
 const visibleLib=()=>LIB.filter(g=>!D.hiddenLib[g.id]).map(g=>LIBMAP[g.id]);
 const allGuides=()=>Object.values(D.guides).concat(visibleLib());
-/* Βήματα: μία γραμμή = ένα βήμα· γραμμή που αρχίζει με «>» = συμβουλή («γιατί») για το από πάνω βήμα. */
-function stepsOf(g){const out=[];for(const raw of String((g&&g.steps)||'').split('\n')){const s=raw.trim();if(!s)continue;
-  if(s[0]==='>'){const t=s.slice(1).trim(),p=out[out.length-1];if(t&&p)p.tip=p.tip?p.tip+' '+t:t;continue;}out.push({t:s,tip:''});}return out;}
+/* Βήματα: μία γραμμή = ένα βήμα· γραμμή που αρχίζει με «>» = συμβουλή («γιατί») για το από πάνω βήμα.
+   Γραμμή «📷 όνομα» = φωτογραφία του από πάνω βήματος. */
+function stepsOf(g){const out=[];let pend=[];for(const raw of String((g&&g.steps)||'').split('\n')){const s=raw.trim();if(!s)continue;
+  const ph=s.match(/^📷\s*(\S+)$/);if(ph){const p=out[out.length-1];if(p)p.imgs.push(ph[1]);else pend.push(ph[1]);continue;}
+  if(s[0]==='>'){const t=s.slice(1).trim(),p=out[out.length-1];if(t&&p)p.tip=p.tip?p.tip+' '+t:t;continue;}out.push({t:s,tip:'',imgs:pend});pend=[];}return out;}
 const guideUsed=gid=>Object.values(D.repairs).filter(r=>r.guide===gid).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
 /* Κάθε φορά που ολοκληρώνεις έναν οδηγό: D.done {id,g,d,note}. */
 const doneOf=gid=>Object.values(D.done).filter(x=>x.g===gid).sort((a,b)=>(b.d||'').localeCompare(a.d||'')||(b.created||0)-(a.created||0));
@@ -644,7 +653,7 @@ function guideView(id){const g=guideOf(id);if(!g)return;const S=stepsOf(g),u=gui
   ${g.safety?`<div class="box warn"><b>⚠️ Ασφάλεια:</b> ${esc(g.safety)}</div>`:''}
   ${g.learn?`<div class="box soft">🎓 <b>Τι μαθαίνεις:</b> ${esc(g.learn)}</div>`:''}
   ${sec('🧰','Χρειάζεται',g.need)}
-  ${S.length?`<b>Βήματα</b><ol class="steps">${S.map(s=>`<li>${esc(s.t)}${s.tip?`<span class="tip">💡 ${esc(s.tip)}</span>`:''}</li>`).join('')}</ol>`:'<p class="muted">Δεν έχει βήματα ακόμα.</p>'}
+  ${S.length?`<b>Βήματα</b><ol class="steps">${S.map(s=>`<li>${esc(s.t)}${s.tip?`<span class="tip">💡 ${esc(s.tip)}</span>`:''}${s.imgs.length?`<div class="ph sph">${s.imgs.map(n=>`<figure><button class="link" type="button" data-a="photoShow" data-n="${esc(n)}" style="display:block;width:100%">${imgTag(n)}</button></figure>`).join('')}</div>`:''}</li>`).join('')}</ol>`:'<p class="muted">Δεν έχει βήματα ακόμα.</p>'}
   ${sec('❌','Συνήθη λάθη',g.mistakes)}${sec('📞','Πότε καλείς τεχνίτη',g.pro)}
   ${g.note?`<div class="pre muted" style="margin-bottom:10px">${esc(g.note)}</div>`:''}
   ${g.src?`<p class="small">Πηγή: ${/^https?:\/\//.test(g.src)?`<a href="${esc(g.src)}" target="_blank" rel="noopener">${esc(g.src.replace(/^https?:\/\/(www\.)?/,'').slice(0,60))}</a>`:esc(g.src)}</p>`:''}
@@ -660,7 +669,8 @@ function guideEdit(id,pre){const g=id?D.guides[id]:(pre||{});if(!g)return;
   <div class="f"><span>Δυσκολία</span>${segBtns('lv',[['1','Εύκολο'],['2','Μέτριο'],['3','Δύσκολο']],String(g.level||1))}</div>
   <label class="f"><span>Τι χρειάζεται</span><input type="text" id="gNeed" value="${esc(g.need||'')}" placeholder="π.χ. γαλλικό κλειδί, φλάντζα 1/2&quot;, τεφλόν"></label>
   <label class="f"><span>⚠️ Ασφάλεια</span><input type="text" id="gSafety" value="${esc(g.safety||'')}" placeholder="π.χ. κλείνω τον γενικό διακόπτη"></label>
-  <label class="f"><span>Βήματα: ένα σε κάθε γραμμή· γραμμή που αρχίζει με «>» είναι συμβουλή ή «γιατί» για το από πάνω βήμα</span><textarea id="gSteps" style="min-height:200px" placeholder="Κλείνω τον γενικό διακόπτη νερού&#10;> Ανοίγω τη βρύση να δω ότι έκλεισε&#10;Ξεβιδώνω τη λαβή&#10;…">${esc(g.steps||'')}</textarea></label>
+  <label class="f"><span>Βήματα: ένα σε κάθε γραμμή· «>» = συμβουλή ή «γιατί», «📷» = φωτογραφία του από πάνω βήματος</span><textarea id="gSteps" style="min-height:200px" placeholder="Κλείνω τον γενικό διακόπτη νερού&#10;> Ανοίγω τη βρύση να δω ότι έκλεισε&#10;Ξεβιδώνω τη λαβή&#10;…">${esc(g.steps||'')}</textarea></label>
+  <div class="row" style="margin:-4px 0 10px"><button class="btn ghost sm" type="button" data-a="photoCam">📷 Κάμερα</button><button class="btn ghost sm" type="button" data-a="photoGal">🖼️ Συλλογή</button><span class="small muted">μπαίνει κάτω από τη γραμμή του δρομέα</span></div>
   <label class="f"><span>🎓 Τι μαθαίνω</span><input type="text" id="gLearn" value="${esc(g.learn||'')}"></label>
   <label class="f"><span>❌ Συνήθη λάθη</span><input type="text" id="gMist" value="${esc(g.mistakes||'')}"></label>
   <label class="f"><span>📞 Πότε καλώ τεχνίτη</span><input type="text" id="gPro" value="${esc(g.pro||'')}"></label>
@@ -679,8 +689,9 @@ const PZ_TIP=/^(συμβουλη|tip|σημειωση|note|γιατι|why)\s*:/;
 const PZ_SAFEIN=/^(προσοχη|ασφαλεια|warning|caution|κινδυνοσ)\s*[:!]/;
 function parsePasted(raw){raw=String(raw||'');const m=raw.match(/https?:\/\/[^\s)]+/),src=m?m[0].replace(/[.,;]+$/,''):'';
   const lines=raw.replace(/\r/g,'').replace(/https?:\/\/[^\s)]+/g,'').split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>1&&!PZ_JUNK.test(norm(s).replace(/[:.!]$/,'')));
-  const numbered=lines.some(l=>PZ_NUM.test(l)),out={title:'',need:[],safety:[],steps:[]};let mode='steps',bare=false;
+  const numbered=lines.some(l=>PZ_NUM.test(l)),out={title:'',need:[],safety:[],steps:[],intro:[]};let mode='steps',bare=false,pend=[];
   lines.forEach((l,i)=>{const n=norm(l).replace(/[:.!]+$/,'').trim(),last=out.steps[out.steps.length-1];
+    if(/^📷\s*\S+$/.test(l)){if(last)last.img.push(l);else pend.push(l);return;}
     if(i===0&&lines.length>1&&!PZ_NUM.test(l)&&!PZ_BUL.test(l)&&l.length<=90&&!Object.values(PZ_HEAD).some(r=>r.test(n))){out.title=l.replace(/[:.]$/,'');return;}
     const hd=l.length<=45&&Object.entries(PZ_HEAD).find(([,r])=>r.test(n));if(hd){mode=hd[0];return;}
     if(/^(βημα|step)\s*\d+$/.test(n)){mode='steps';bare=true;return;}
@@ -690,24 +701,109 @@ function parsePasted(raw){raw=String(raw||'');const m=raw.match(/https?:\/\/[^\s
     if(mode==='need'){out.need.push(l.replace(PZ_BUL,'').replace(PZ_NUM,'').replace(/[.;,]$/,''));return;}
     if(mode==='safety'){out.safety.push(l.replace(PZ_BUL,''));return;}
     const isStep=bare||!numbered||PZ_NUM.test(l);
-    if(isStep||!last){out.steps.push({t:l.replace(PZ_NUM,'').replace(PZ_BUL,''),tip:[]});bare=false;}else last.tip.push(l.replace(PZ_BUL,''));});
+    /* Με αριθμημένα βήματα: ό,τι είναι πριν από το πρώτο βήμα είναι εισαγωγή (→ σημειώσεις). */
+    if(!isStep&&!last){out.intro.push(l);return;}
+    if(isStep){out.steps.push({t:l.replace(PZ_NUM,'').replace(PZ_BUL,''),tip:[],img:pend});pend=[];bare=false;}else last.tip.push(l.replace(PZ_BUL,''));});
   /* Ένα μεγάλο κομμάτι χωρίς αρίθμηση: χωρίζεται σε προτάσεις. */
-  if(out.steps.length===1&&out.steps[0].t.length>160){const parts=out.steps[0].t.split(/(?<=[.!;])\s+(?=[Α-ΩΆ-ΏA-Z0-9])/).map(s=>s.trim()).filter(Boolean);if(parts.length>1)out.steps=parts.map(t=>({t,tip:[]}));}
-  return{title:out.title,need:out.need.join(', '),safety:out.safety.join(' '),src,
-    steps:out.steps.filter(s=>s.t).map(s=>s.t+(s.tip.length?'\n> '+s.tip.join(' '):'')).join('\n')};}
-const CAT_WORDS={plumb:/βρυσ|σιφων|λεκαν|καζανακ|υδραυλ|σωλην|αποχετευσ|μπαταρια (κουζινασ|μπανιου)|θερμοσιφ|ντουσ/,elec:/πριζ|διακοπτ|καλωδι|ηλεκτρ|ασφαλει|ρελε|φωτιστικ|λαμπ/,
-  wood:/ξυλ|ντουλαπ|μεντεσ|συρταρ|ραφι|επιπλ|πορτα/,wall:/τοιχ|βαψ|στοκ|χρωμα|σοβα|ταβαν/,seal:/σιλικον|αρμο|μονωσ|υγρασι|μουχλ/,
-  appl:/πλυντηρ|ψυγει|κλιματιστ|φουρν|απορροφητηρ|συσκευ/,ride:/αυτοκινητ|ελαστικ|ποδηλατ|σαμπρελ|μηχανακ|λαδια μηχανησ/,tools:/σκουρι|ακονισ|εργαλει/};
+  if(out.steps.length===1&&out.steps[0].t.length>160){const parts=out.steps[0].t.split(/(?<=[.!;])\s+(?=[Α-ΩΆ-ΏA-Z0-9])/).map(s=>s.trim()).filter(Boolean);if(parts.length>1)out.steps=parts.map((t,i)=>({t,tip:[],img:i?[]:out.steps[0].img}));}
+  const intro=out.intro.join('\n');
+  return{title:out.title,need:out.need.join(', '),safety:out.safety.join(' '),src,note:intro.length>600?intro.slice(0,600)+'…':intro,
+    steps:out.steps.filter(s=>s.t).map(s=>s.t+(s.tip.length?'\n> '+s.tip.join(' '):'')+s.img.map(x=>'\n'+x).join('')).join('\n')};}
+const CAT_WORDS={plumb:/βρυσ|σιφων|λεκαν|καζανακ|υδραυλ|σωλην|αποχετευσ|μπαταρια (κουζινασ|μπανιου)|θερμοσιφ|ντουσ|faucet|sink|toilet|plumb|drain|pipe/,elec:/πριζ|διακοπτ|καλωδι|ηλεκτρ|ασφαλει|ρελε|φωτιστικ|λαμπ|outlet|socket|light switch|wiring|breaker/,
+  wood:/ξυλ|ντουλαπ|μεντεσ|συρταρ|ραφι|επιπλ|πορτα|hinge|drawer|cabinet|shelf|wood/,wall:/τοιχ|βαψ|στοκ|χρωμα|σοβα|ταβαν|drywall|paint|plaster/,seal:/σιλικον|αρμο|μονωσ|υγρασι|μουχλ|caulk|silicone|grout/,
+  appl:/πλυντηρ|ψυγει|κλιματιστ|φουρν|απορροφητηρ|συσκευ|washer|dryer|dishwasher|fridge|refrigerator|oven|vacuum|appliance|phone|laptop|console/,ride:/αυτοκινητ|ελαστικ|ποδηλατ|σαμπρελ|μηχανακ|λαδια μηχανησ|bike|bicycle|tire|tyre|\bcar\b|scooter/,tools:/σκουρι|ακονισ|εργαλει|rust|sharpen/};
 function guessCat(text){const n=norm(text);let best='other',bn=0;for(const [k,r] of Object.entries(CAT_WORDS)){const c=(n.match(new RegExp(r.source,'g'))||[]).length;if(c>bn){bn=c;best=k;}}return best;}
 function pasteSheet(text,src){openSheet(`<h3>Επικόλληση οδηγού</h3>
-  <p class="small muted" style="margin-top:0">Αντέγραψε τις οδηγίες από οποιαδήποτε σελίδα και επικόλλησέ τες εδώ (ή διάλεξε κείμενο στον browser → Κοινοποίηση → Μαστορέματα). Η εφαρμογή βρίσκει τίτλο, υλικά, προσοχή και βήματα· μετά τα διορθώνεις. Για δική σου χρήση: κράτα τον σύνδεσμο της πηγής.</p>
+  <p class="small muted" style="margin-top:0">Αντέγραψε τις οδηγίες από οποιαδήποτε σελίδα και επικόλλησέ τες εδώ. Ή, πιο εύκολα: στον browser Κοινοποίηση → Μαστορέματα (ο σύνδεσμος κατεβαίνει μόνος του). Η εφαρμογή βρίσκει τίτλο, υλικά, προσοχή και βήματα· μετά τα διορθώνεις. Για δική σου χρήση: κράτα τον σύνδεσμο της πηγής.</p>
   <label class="f"><span>Οδηγίες</span><textarea id="pzText" style="min-height:220px" placeholder="Επικόλληση εδώ…">${esc(text||'')}</textarea></label>
-  <label class="f"><span>Σύνδεσμος πηγής (προαιρετικά)</span><input type="text" id="pzSrc" value="${esc(src||'')}" placeholder="https://…"></label>
+  <label class="f"><span>Σύνδεσμος (πηγή)</span><input type="text" id="pzSrc" value="${esc(src||'')}" placeholder="https://…"></label>
+  ${canFetch()?'<div class="row" style="margin:-4px 0 6px"><button class="btn ghost sm" type="button" data-a="pasteFetch">🌐 Λήψη από τον σύνδεσμο</button><span class="small muted">χρειάζεται internet μόνο τώρα</span></div>':''}
   <div class="actions"><button class="btn grow" type="button" data-a="pasteGo">Μετατροπή σε οδηγό</button><button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
 function pasteToGuide(text,src){const p=parsePasted(text);if(!p.steps)return false;guideEdit(null,Object.assign(p,{src:src||p.src,cat:guessCat(text),title:p.title||''}));return true;}
-/* Κείμενο που κοινοποιήθηκε από άλλη εφαρμογή (π.χ. επιλεγμένο κείμενο στον Chrome). */
+/* ---- Οδηγός από σύνδεσμο (Android): η σελίδα κατεβαίνει ΜΟΝΟ όταν τη μοιράζεσαι ή πατάς «Λήψη».
+   Σειρά: iFixit (το API τους, με φωτογραφίες ανά βήμα) → schema.org HowTo (JSON-LD) → κείμενο του άρθρου (parsePasted).
+   Οι φωτογραφίες κατεβαίνουν μόνο αν το ζητήσεις (fetchPhotos → Photos.kt). Στη φόρμα ως γραμμές «📷 όνομα». ---- */
+const canFetch=()=>!!(NB&&typeof NB.fetchUrl==='function');
+const htmlText=h=>{try{return new DOMParser().parseFromString('<body>'+String(h??'')+'</body>','text/html').body.textContent.replace(/\s+/g,' ').trim();}catch(e){return String(h??'');}};
+const absUrl=(u,base)=>{try{const x=new URL(String(u||'').trim(),base);return /^https?:$/.test(x.protocol)?x.href:'';}catch(e){return '';}};
+const IFX=/^https?:\/\/(?:[a-z]+\.)?ifixit\.com\/(?:Guide|Teardown)\/(?:[^/?#]+\/)?(\d+)/i;
+const ifixitApi=u=>{const m=String(u).match(IFX);return m?`https://www.ifixit.com/api/2.0/guides/${m[1]}`:null;};
+const ifxText=s=>String(s||'').replace(/\[link\|[^|\]]*\|([^\]]*)\]/g,'$1').replace(/\[(?:guide|product|video|image)\|[^\]]*\]/gi,'').replace(/'''|''/g,'').replace(/\s+/g,' ').trim();
+function fromIfixit(j,url){if(!j||!Array.isArray(j.steps)||!j.steps.length)return null;const safety=[],steps=[];
+  for(const st of j.steps){const L=(st.lines||[]).map(l=>({t:l.text_raw!=null?ifxText(l.text_raw):htmlText(l.text_rendered),b:String(l.bullet||'')})).filter(l=>l.t);
+    for(const l of L)if(/caution|warning/.test(l.b)&&!safety.includes(l.t))safety.push(l.t);
+    const rest=L.filter(l=>!/caution|warning/.test(l.b)),head=ifxText(st.title);if(!rest.length&&!head)continue;
+    const imgs=((st.media&&st.media.type==='image'&&st.media.data)||[]).map(im=>im&&absUrl(im.standard||im.medium||im.large||im.original,url)).filter(Boolean).slice(0,2);
+    steps.push({t:rest.length?(head?head+': ':'')+rest[0].t:head,tip:rest.slice(1).map(l=>l.t),img:imgs});}
+  const lvl={'very easy':1,easy:1,moderate:2,difficult:3,'very difficult':3}[String(j.difficulty||'').toLowerCase()]||0;
+  const need=[...(j.tools||[]),...(j.parts||[])].map(x=>ifxText(x&&(x.text||x.name))).filter(Boolean).join(', ');
+  const title=ifxText(j.title)||'Οδηγός iFixit';
+  return{title,level:lvl,time:ifxText(j.time_required),need,safety:safety.join(' '),steps,src:url,cat:guessCat(title+' '+need),
+    note:`Από το iFixit (άδεια CC BY-NC-SA, μόνο για προσωπική χρήση)${j.author&&j.author.username?' · συντάκτης: '+j.author.username:''}`};}
+function findHowTo(doc){for(const sc of doc.querySelectorAll('script[type="application/ld+json"]')){let j;try{j=JSON.parse(sc.textContent);}catch(e){continue;}
+    const st=[j];while(st.length){const o=st.pop();if(!o||typeof o!=='object')continue;if(Array.isArray(o)){st.push(...o);continue;}
+      if([].concat(o['@type']||[]).includes('HowTo'))return o;if(o['@graph'])st.push(o['@graph']);if(o.mainEntity)st.push(o.mainEntity);}}return null;}
+const ldImg=(im,base)=>{if(!im)return '';if(Array.isArray(im))return ldImg(im[0],base);if(typeof im==='string')return absUrl(im,base);return absUrl(im.url||im.contentUrl,base);};
+const isoTime=s=>{const m=String(s||'').match(/^P(?:T)?(?:(\d+)H)?(?:(\d+)M)?$/i);if(!m||(!m[1]&&!m[2]))return '';return [m[1]?`${m[1]} ${+m[1]===1?'ώρα':'ώρες'}`:'',m[2]?`${m[2]}′`:''].filter(Boolean).join(' ');};
+function fromHowTo(h,url){const steps=[];
+  const add=s=>{if(!s)return;if(typeof s==='string'){const t=htmlText(s);if(t)steps.push({t,tip:[],img:[]});return;}if(Array.isArray(s)){s.forEach(add);return;}
+    const ty=[].concat(s['@type']||[]);if(ty.includes('HowToSection')||(Array.isArray(s.itemListElement)&&!s.text)){(s.itemListElement||[]).forEach(add);return;}
+    const name=htmlText(s.name),text=htmlText(s.text),img=ldImg(s.image,url);
+    const t=name&&text&&name!==text&&name.length<=90&&!text.startsWith(name.slice(0,25))?name:(text||name),tip=t===name&&text&&text!==name?[text]:[];
+    if(t)steps.push({t,tip,img:img?[img]:[]});};
+  add(h.step);if(!steps.length)return null;
+  const names=x=>[].concat(x||[]).map(y=>htmlText(typeof y==='string'?y:y&&y.name)).filter(Boolean);
+  const title=htmlText(h.name),need=names(h.tool).concat(names(h.supply)).join(', ');
+  return{title,time:isoTime(h.totalTime),need,safety:'',steps,src:url,cat:guessCat(title+' '+need+' '+steps.map(s=>s.t).join(' ')),note:htmlText(h.description).slice(0,600)};}
+const pageTitle=doc=>{const t=(doc.querySelector('meta[property="og:title"]')||{}).content||(doc.querySelector('h1')||{}).textContent||doc.title||'';
+  return t.replace(/\s+/g,' ').trim().replace(/\s+[|–—-]\s+[^|–—-]{2,40}$/,'');};
+/* Κείμενο του άρθρου ως γραμμές (επικεφαλίδες, παράγραφοι, «1.» για αριθμημένες λίστες) + φωτογραφίες ως «📷 #αριθμός». */
+function articleLines(doc,base){const root=doc.querySelector('[itemprop="articleBody"]')||doc.querySelector('article')||doc.querySelector('main')||doc.querySelector('.entry-content,.post-content,.article-content,#content')||doc.body;
+  const lines=[pageTitle(doc)],imgs=[];if(!root)return{lines,imgs};
+  root.querySelectorAll('script,style,noscript,nav,header,footer,aside,form,iframe,button,svg,[class*="share"],[class*="comment"],[id*="comment"],[class*="related"],[class*="advert"],[class*="newsletter"],[class*="cookie"]').forEach(e=>e.remove());
+  const clean=x=>String(x||'').replace(/\s+/g,' ').trim();
+  const src=im=>{const s=im.getAttribute('data-src')||im.getAttribute('data-lazy-src')||im.getAttribute('src')||'',w=+im.getAttribute('width')||0;
+    if(!s||/^data:|\.svg|\.gif|logo|icon|avatar|emoji|pixel|spacer|gravatar|badge/i.test(s+' '+(im.className||''))||(w&&w<200))return '';return absUrl(s,base);};
+  const addImg=im=>{const u=src(im);if(!u||imgs.includes(u)||imgs.length>=15)return;imgs.push(u);lines.push('📷 #'+(imgs.length-1));};
+  const walk=el=>{for(const n of [...el.children]){const t=n.tagName;if(lines.length>250)return;
+    if(t==='H1')continue;
+    if(/^H[2-6]$/.test(t)){const x=clean(n.textContent);if(x)lines.push(x);continue;}
+    if(t==='OL'){let k=0;for(const li of n.children){if(li.tagName!=='LI')continue;const x=clean(li.textContent);if(x)lines.push(`${++k}. ${x}`);li.querySelectorAll('img').forEach(addImg);}continue;}
+    if(t==='UL'){for(const li of n.children)if(li.tagName==='LI'){const x=clean(li.textContent);if(x)lines.push('- '+x);li.querySelectorAll('img').forEach(addImg);}continue;}
+    if(t==='P'||(!n.children.length&&clean(n.textContent))){const x=clean(n.textContent);if(x)lines.push(x);if(t==='P')n.querySelectorAll('img').forEach(addImg);continue;}
+    if(t==='IMG'){addImg(n);continue;}
+    walk(n);}};
+  walk(root);return{lines,imgs};}
+/* Από δομημένα βήματα σε κείμενο φόρμας· οι φωτογραφίες ως «📷 #αριθμός» μέχρι να κατέβουν. */
+function stepsToForm(g){const urls=[],L=[];for(const s of g.steps){L.push(s.t);for(const t of s.tip||[])if(t)L.push('> '+t);
+    for(const u of s.img||[]){let k=urls.indexOf(u);if(k<0&&urls.length<15){urls.push(u);k=urls.length-1;}if(k>=0)L.push('📷 #'+k);}}
+  const {steps,img,...pre}=g;return{pre:Object.assign(pre,{steps:L.join('\n')}),urls};}
+function guideFromFetched(url,body){const t=String(body||'').trim();
+  if(t[0]==='{'){let j=null;try{j=JSON.parse(t);}catch(e){}const g=j&&fromIfixit(j,url);if(g&&g.steps.length)return stepsToForm(g);}
+  const doc=new DOMParser().parseFromString(t,'text/html'),h=findHowTo(doc),g=h&&fromHowTo(h,url);if(g&&g.steps.length)return stepsToForm(Object.assign(g,{title:g.title||pageTitle(doc)}));
+  const a=articleLines(doc,url),p=parsePasted(a.lines.join('\n'));
+  return{pre:Object.assign(p,{src:url,cat:guessCat(a.lines.join(' ')),title:p.title||pageTitle(doc)}),urls:a.imgs};}
+let imp=null,impT=null;
+function importUrl(url){url=String(url||'').trim();if(!canFetch()){pasteSheet('',url);toast('Η λήψη σελίδας γίνεται μόνο στην εφαρμογή Android. Αντέγραψε το κείμενο εδώ.');return;}
+  const api=ifixitApi(url);imp={url,target:api||url};closePhoto();if(stp)stepClose();
+  openSheet(`<h3>Λήψη οδηγού…</h3><p class="small muted" style="word-break:break-all">${esc(url)}</p><p>Η σελίδα κατεβαίνει και γίνεται οδηγός, που μετά τον διορθώνεις.${api?' Από το iFixit, με φωτογραφίες ανά βήμα.':''}</p><div class="actions"><button class="btn ghost grow" type="button" data-a="impCancel">Άκυρο</button></div>`);
+  const me=imp;clearTimeout(impT);impT=setTimeout(()=>{if(imp===me&&!me.urls)importFail('Η σελίδα αργεί πολύ.');},45000);
+  try{NB.fetchUrl(imp.target);}catch(e){importFail();}}
+function importFail(msg){const u=imp?imp.url:'';imp=null;pasteSheet('',u);toast((msg||'Δεν άνοιξε η σελίδα.')+' Αντέγραψε το κείμενο της σελίδας και επικόλλησέ το εδώ.');}
+window.__onFetched=(u,body)=>{if(!imp||u!==imp.target||imp.urls)return;if(body==null){importFail('Δεν άνοιξε η σελίδα (σύνδεση;).');return;}
+  let g=null;try{g=guideFromFetched(imp.url,body);}catch(e){g=null;}const n=g?stepsOf(g.pre).length:0;
+  if(!n){importFail('Δεν βρέθηκαν βήματα σε αυτή τη σελίδα.');return;}
+  imp.pre=g.pre;imp.urls=g.urls;
+  if(g.urls.length&&typeof NB.fetchPhotos==='function')openSheet(`<h3>${esc(g.pre.title||'Οδηγός')}</h3><p>Βρέθηκαν <b>${n}</b> ${plural(n,'βήμα','βήματα')} και <b>${g.urls.length}</b> ${plural(g.urls.length,'φωτογραφία','φωτογραφίες')}. Να κατέβουν και οι φωτογραφίες; Μικραίνουν, μένουν στο κινητό και φαίνονται κάτω από κάθε βήμα, και χωρίς internet.</p>
+    <div class="actions"><button class="btn grow" type="button" data-a="impPhotos">Με τις φωτογραφίες</button><button class="btn ghost" type="button" data-a="impNoPhotos">Χωρίς</button></div>`);
+  else importFinish(null);};
+window.__onFetchedPhotos=names=>{if(!imp||!imp.waitPhotos)return;const k=(names||[]).filter(Boolean).length,all=imp.urls.length;importFinish(names||[]);
+  if(k<all)toast(`Κατέβηκαν ${k} από ${all} φωτογραφίες`);};
+function importFinish(names){if(!imp||!imp.pre)return;const steps=String(imp.pre.steps).split('\n').map(l=>{const m=l.match(/^📷 #(\d+)$/);if(!m)return l;const nm=names&&names[+m[1]];return nm?'📷 '+nm:null;}).filter(x=>x!==null).join('\n');
+  const pre=Object.assign({},imp.pre,{steps});imp=null;guideEdit(null,pre);toast('Ο οδηγός είναι έτοιμος: διόρθωσέ τον και πάτα «Αποθήκευση»');}
+/* Κείμενο ή σύνδεσμος που κοινοποιήθηκε από άλλη εφαρμογή (π.χ. Chrome → Κοινοποίηση → Μαστορέματα). */
 window.__onShared=(text,subject)=>{text=String(text||'').trim();subject=String(subject||'').trim();if(!text)return;closePhoto();if(stp)stepClose();
-  if(/^https?:\/\/\S+$/.test(text)){pasteSheet('',text);toast('Ήρθε μόνο ο σύνδεσμος. Διάλεξε το κείμενο στη σελίδα και κοινοποίησέ το, ή αντέγραψέ το εδώ.');return;}
+  const um=text.match(/https?:\/\/\S+/);if(um&&text.replace(um[0],'').trim().length<120){importUrl(um[0]);return;}
   const full=subject&&!text.startsWith(subject)?subject+'\n'+text:text;if(!pasteToGuide(full,''))pasteSheet(full,'');};
 
 /* ---- Βήμα βήμα: σε όλη την οθόνη, η οθόνη του κινητού μένει αναμμένη. Πρώτα «Πριν ξεκινήσεις» (ασφάλεια, υλικά). ---- */
@@ -717,6 +813,7 @@ function stepScreens(g){const pre=[g.safety?'⚠️ '+g.safety:'',g.need?'🧰 �
 function stepDraw(){const g=guideOf(stp.id),L=g?stepScreens(g):[],n=g?stepsOf(g).length:0;if(!n){stepClose();return;}stp.i=Math.max(0,Math.min(stp.i,L.length-1));
   const off=L.length-n,s=L[stp.i],tp=$('#stTip');
   $('#stTitle').textContent=g.title;$('#stNum').textContent=s.h||`Βήμα ${stp.i-off+1} από ${n}`;$('#stText').textContent=s.t;tp.textContent=s.tip?'💡 '+s.tip:'';tp.hidden=!s.tip;
+  $('#stImg').innerHTML=(s.imgs||[]).map(n=>{const u=photoSrc(n);return u?`<img src="${esc(u)}" alt="" data-a="photoShow" data-n="${esc(n)}">`:'';}).join('');
   $('#stPrev').disabled=stp.i===0;$('#stNext').textContent=stp.i===L.length-1?'Τέλος':stp.i<off?'Ξεκινάμε':'Επόμενο';}
 function stepOpen(id){closeSheet();stp={id,i:0};$('#step').classList.add('on');setWake(true);stepDraw();}
 function stepClose(){stp=null;$('#step').classList.remove('on');setWake(false);}
@@ -882,6 +979,10 @@ const A={
  guideEdit:el=>guideEdit(el.dataset.id),
  gCat:el=>{ui.gCat=el.dataset.v;render();},
  guidePaste:()=>pasteSheet('',''),
+ pasteFetch:()=>{const u=val('pzSrc');if(!/^https?:\/\/\S+$/.test(u)){toast('Γράψε έναν σύνδεσμο που αρχίζει με https://');return;}importUrl(u);},
+ impCancel:()=>{imp=null;closeSheet();},
+ impPhotos:()=>{if(!imp||!imp.urls)return;imp.waitPhotos=true;openSheet(`<h3>Λήψη φωτογραφιών…</h3><p>${imp.urls.length} φωτογραφίες· μικραίνουν και μένουν στο κινητό.</p><div class="actions"><button class="btn ghost grow" type="button" data-a="impCancel">Άκυρο</button></div>`);try{NB.fetchPhotos(JSON.stringify(imp.urls));}catch(e){importFinish(null);}},
+ impNoPhotos:()=>importFinish(null),
  pasteGo:()=>{const t=$('#pzText').value;if(!t.trim()){toast('Επικόλλησε πρώτα τις οδηγίες');return;}if(!pasteToGuide(t,val('pzSrc')))toast('Δεν βρέθηκαν βήματα. Έλεγξε το κείμενο.');},
  guideSave:el=>{const title=val('gTitle');if(!title){toast('Γράψε τίτλο');return;}const id=el.dataset.id||uid(),old=D.guides[id]||{created:Date.now()};
    D.guides[id]=Object.assign({},old,{id,title,cat:val('gCat')||'other',level:+segVal('lv')||1,time:val('gTime'),need:val('gNeed'),safety:val('gSafety'),

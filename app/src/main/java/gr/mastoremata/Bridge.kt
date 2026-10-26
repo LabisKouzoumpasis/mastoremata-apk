@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.webkit.JavascriptInterface
 import org.json.JSONArray
+import org.json.JSONObject
 
 /** Η γέφυρα ανάμεσα στις οθόνες (HTML/JS) και στο Android. Ονομάζεται AndroidBridge στο JS. */
 class Bridge(private val act: MainActivity) {
@@ -80,6 +81,36 @@ class Bridge(private val act: MainActivity) {
     }
 
     @JavascriptInterface fun photoCount(): Int = Photos.all(Photos.dir(act)).size
+
+    /** Λήψη σελίδας οδηγού (HTML ή JSON)· απάντηση στο window.__onFetched(url, κείμενο ή null). */
+    @JavascriptInterface fun fetchUrl(url: String) {
+        Thread(Runnable {
+            val body = try { Web.text(url) } catch (e: Exception) { null }
+            act.js("window.__onFetched&&window.__onFetched(" + JSONObject.quote(url) + "," + (if (body == null) "null" else JSONObject.quote(body)) + ")")
+        }).start()
+    }
+
+    /**
+     * Λήψη φωτογραφιών οδηγού (JSON πίνακας διευθύνσεων, έως 20): μικραίνουν και μπαίνουν στις φωτογραφίες της εφαρμογής.
+     * Απάντηση στο window.__onFetchedPhotos([όνομα ή "" για όσες απέτυχαν], στην ίδια σειρά).
+     */
+    @JavascriptInterface fun fetchPhotos(urlsJson: String) {
+        Thread(Runnable {
+            val out = JSONArray()
+            try {
+                val a = JSONArray(urlsJson)
+                for (i in 0 until Math.min(a.length(), 20)) {
+                    val name = try {
+                        val bytes = Web.image(a.getString(i))
+                        if (bytes == null) null else Photos.importImage(act) { java.io.ByteArrayInputStream(bytes) }
+                    } catch (e: Throwable) { null }
+                    out.put(name ?: "")
+                }
+            } catch (e: Exception) {
+            }
+            act.js("window.__onFetchedPhotos&&window.__onFetchedPhotos(" + out.toString() + ")")
+        }).start()
+    }
 
     @JavascriptInterface fun appVersion(): String {
         return try {
