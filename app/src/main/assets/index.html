@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Μαστορέματα</title>
+<style>
+:root{--bg:#F3F1EC;--surface:#fff;--ink:#22201C;--muted:#6B655C;--line:#E2DDD3;--pri:#B4531F;--pri-ink:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#161514;--surface:#201E1C;--ink:#ECE7DF;--muted:#A79F94;--line:#34302B;--pri:#F0A06A;--pri-ink:#1A1410}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
+h1{font-size:24px;margin:8px 0 4px}
+p{color:var(--muted);margin:0 0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+ul{margin:0;padding-left:20px}
+button{background:var(--pri);color:var(--pri-ink);border:0;border-radius:10px;padding:10px 14px;font:inherit;margin:4px 6px 4px 0}
+#ph img{max-width:100%;border-radius:10px;margin-top:8px;display:block}
+</style>
+</head>
+<body>
+<h1>🔧 Μαστορέματα</h1>
+<p>Προσωρινή σελίδα. Η πρώτη κανονική έκδοση έρχεται σύντομα.</p>
+<div class="card">
+  <ul>
+    <li>Εργαλεία</li>
+    <li>Επισκευές</li>
+    <li>Οδηγοί</li>
+    <li>Δεξιότητες</li>
+    <li>Ανταλλακτικά</li>
+  </ul>
+</div>
+<div class="card">
+  <b>Δοκιμή φωτογραφίας</b>
+  <div>
+    <button data-a="cam">Κάμερα</button>
+    <button data-a="gal">Συλλογή</button>
+  </div>
+  <div id="ph"></div>
+</div>
+<p id="ver"></p>
+<script>
+const B=window.AndroidBridge;
+const ph=document.getElementById('ph');
+function msg(t){ph.insertAdjacentHTML('afterbegin','<p>'+t+'</p>');}
+window.__toast=msg;
+window.__onPhotos=list=>{
+  if(!list.length){msg('Δεν προστέθηκε φωτογραφία.');return;}
+  for(const n of list){const img=document.createElement('img');img.src=B.photoUrl(n);img.alt=n;ph.appendChild(img);}
+};
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-a]');if(!a)return;
+  if(!B){msg('Χρειάζεται την εφαρμογή Android.');return;}
+  if(a.dataset.a==='cam')B.takePhoto();else B.pickPhotos();
+});
+if(B)document.getElementById('ver').textContent='Έκδοση '+B.appVersion();
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+name: Χτίσιμο APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Το index.html έρχεται αντιγραμμένο από το αποθετήριο mastoremata (εκεί και τα τεστ jsdom).
+      - name: Έλεγχος οθονών
+        run: |
+          test -s app/src/main/assets/index.html || { echo "::error::Λείπει το app/src/main/assets/index.html"; exit 1; }
+          grep -q 'AndroidBridge' app/src/main/assets/index.html || echo "::warning::Το index.html δεν χρησιμοποιεί το AndroidBridge."
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Κλειδί υπογραφής
+        env:
+          KS_BASE64: ${{ secrets.KS_BASE64 }}
+        run: |
+          if [ -n "$KS_BASE64" ]; then
+            echo "$KS_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "KS_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Δεν βρέθηκε το μυστικό KS_BASE64. Το APK υπογράφεται με προσωρινό κλειδί και ΔΕΝ ενημερώνει την εγκατεστημένη εφαρμογή."
+          fi
+
+      - name: Χτίσιμο
+        env:
+          KS_PASSWORD: ${{ secrets.KS_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KS_ALIAS }}
+          KS_KEY_PASSWORD: ${{ secrets.KS_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Όνομα αρχείου
+        run: cp app/build/outputs/apk/release/app-release.apk "Mastoremata-1.0.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mastoremata-1.0.${{ github.run_number }}
+          path: Mastoremata-1.0.${{ github.run_number }}.apk
+
+      - name: Δημοσίευση στα Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Μαστορέματα 1.0.${{ github.run_number }}
+          files: Mastoremata-1.0.${{ github.run_number }}.apk
