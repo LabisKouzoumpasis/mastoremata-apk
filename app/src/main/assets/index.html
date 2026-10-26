@@ -1,58 +1,625 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="el">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3F1EC">
 <title>Μαστορέματα</title>
 <style>
-:root{--bg:#F3F1EC;--surface:#fff;--ink:#22201C;--muted:#6B655C;--line:#E2DDD3;--pri:#B4531F;--pri-ink:#fff}
-@media (prefers-color-scheme:dark){:root{--bg:#161514;--surface:#201E1C;--ink:#ECE7DF;--muted:#A79F94;--line:#34302B;--pri:#F0A06A;--pri-ink:#1A1410}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
-h1{font-size:24px;margin:8px 0 4px}
-p{color:var(--muted);margin:0 0 16px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
-ul{margin:0;padding-left:20px}
-button{background:var(--pri);color:var(--pri-ink);border:0;border-radius:10px;padding:10px 14px;font:inherit;margin:4px 6px 4px 0}
-#ph img{max-width:100%;border-radius:10px;margin-top:8px;display:block}
+:root{
+  color-scheme: light;
+  --bg:#F3F1EC; --surface:#FFFFFF; --ink:#22201C; --muted:#625C53; --line:#DDD7CC; --soft:#EAE5DC;
+  --pri:#A94B1A; --pri-ink:#FFFFFF; --pri-soft:#F6E1D3; --ok:#3F6A2A; --ok-ink:#FFFFFF; --warn:#8F5A06; --warn-bg:#FBEFD6; --bad:#B23A22; --bad-bg:#F8E1DC;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){
+    color-scheme: dark;
+    --bg:#161514; --surface:#201E1C; --ink:#ECE7DF; --muted:#A79F94; --line:#38332D; --soft:#2A2724;
+    --pri:#F0A06A; --pri-ink:#1A1410; --pri-soft:#43301F; --ok:#8CC06A; --ok-ink:#10200A; --warn:#F0C060; --warn-bg:#3A2E12; --bad:#F07A62; --bad-bg:#3D1F19;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#161514; --surface:#201E1C; --ink:#ECE7DF; --muted:#A79F94; --line:#38332D; --soft:#2A2724;
+  --pri:#F0A06A; --pri-ink:#1A1410; --pri-soft:#43301F; --ok:#8CC06A; --ok-ink:#10200A; --warn:#F0C060; --warn-bg:#3A2E12; --bad:#F07A62; --bad-bg:#3D1F19;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans','Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+.wrap{max-width:680px;margin:0 auto;padding:0 16px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.grow{flex:1;min-width:0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+[hidden]{display:none!important}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:12px 0 8px;transition:box-shadow .2s}
+header.top.sc{box-shadow:0 1px 0 var(--line)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hrow .icons{display:flex;gap:2px}
+h1{margin:0;font-size:1.75rem;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.icon{border:0;background:transparent;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:var(--muted)}
+.icon:hover{background:var(--soft)}
+.icon svg{width:24px;height:24px}
+
+main#view.wrap{padding-bottom:calc(var(--navh,80px) + 32px)}
+h2{font-size:1.02rem;margin:20px 0 8px;color:var(--muted)}
+.card{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--line)}
+.card h3{margin:0 0 8px;font-size:1rem}
+.btn{border:0;border-radius:12px;padding:10px 16px;min-height:44px;font-weight:600;background:var(--pri);color:var(--pri-ink)}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn.warn{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.btn.sm{padding:6px 12px;min-height:36px;font-size:.88rem;border-radius:10px}
+.btn.add{width:100%;margin:4px 0 10px}
+.link{border:0;background:none;color:var(--pri);font-weight:600;padding:0;text-align:left}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:.9rem;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--pri);color:var(--pri-ink);border-color:var(--pri);font-weight:600}
+.chip small{opacity:.75;margin-left:4px}
+.seg{display:flex;gap:4px;overflow-x:auto;margin:2px 0 12px;padding:4px;background:var(--soft);border-radius:12px;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:1 0 auto;border:0;background:transparent;border-radius:9px;padding:8px 6px;font-weight:600;font-size:.84rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--pri);color:var(--pri-ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+label.f,div.f{display:block;margin-bottom:10px}
+label.f>span,div.f>span{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+input[type=text],input[type=number],input[type=search],input[type=date],select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:1rem;min-height:44px}
+textarea{min-height:96px;resize:vertical}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toggle{display:flex;align-items:center;gap:10px;margin:4px 0 12px;font-weight:500}
+.toggle input{width:22px;height:22px;accent-color:var(--pri);flex:none}
+.empty{color:var(--muted);line-height:1.6;margin:18px 2px}
+.empty strong{display:block;color:var(--ink);font-size:1.15rem;margin-bottom:4px}
+.tag{display:inline-block;font-size:.76rem;font-weight:600;border-radius:6px;padding:1px 7px;background:var(--soft);color:var(--muted)}
+.tag.ok{color:var(--ok)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.sum{margin:0 0 10px;color:var(--muted);font-size:.95rem}
+.sum b{color:var(--ink)}
+
+.item{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:11px 14px;margin-bottom:8px;color:var(--ink)}
+.item .grow b{display:block;font-weight:600}
+.item .sub{display:block;font-size:.85rem;color:var(--muted)}
+.thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;background:var(--soft)}
+.ph{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin:6px 0 10px}
+.ph figure{position:relative;margin:0}
+.ph img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:var(--soft)}
+.ph .x{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-weight:700;line-height:28px;padding:0}
+.lines{margin:4px 0 8px}
+.pline{display:grid;grid-template-columns:1fr 64px 80px 36px;gap:6px;margin-bottom:6px;align-items:center}
+.pline input{min-height:40px;padding:8px}
+.pline .x{border:0;background:var(--soft);border-radius:10px;height:40px;font-weight:700;color:var(--muted)}
+.plhead{display:grid;grid-template-columns:1fr 64px 80px 36px;gap:6px;font-size:.76rem;font-weight:600;color:var(--muted);margin-bottom:2px}
+.total{display:flex;justify-content:space-between;font-weight:700;margin:6px 0 12px}
+table.pt{width:100%;border-collapse:collapse;font-size:.92rem;margin:4px 0 8px}
+table.pt td{padding:5px 0;border-top:1px solid var(--line)}
+table.pt td.n{text-align:right;white-space:nowrap;padding-left:10px}
+.pre{white-space:pre-wrap}
+ol.steps{margin:6px 0 12px;padding-left:22px}
+ol.steps li{margin-bottom:6px}
+.ms{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.ms:first-child{border-top:0}
+.ms .d{flex:none;width:76px;font-size:.84rem;color:var(--muted);padding-top:2px}
+.ms .x{border:0;background:none;color:var(--muted);font-weight:700;padding:0 4px}
+.stl{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:.92rem}
+.stl i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--ok)}
+.stl.warn i{background:var(--warn)}
+.stl.bad i{background:var(--bad)}
+.res h2{margin-top:16px}
+
+/* nav */
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);padding-bottom:max(env(safe-area-inset-bottom,0px),6px)}
+nav.bottom .wrap{display:flex;padding:0 2px}
+nav.bottom button{flex:1 1 auto;min-width:0;border:0;background:transparent;padding:8px 1px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.66rem;font-weight:600;letter-spacing:-.01em;color:var(--muted)}
+nav.bottom button span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+nav.bottom svg{width:52px;height:30px;padding:3px 0;border-radius:999px;transition:background .2s}
+nav.bottom button[aria-current="page"]{color:var(--pri)}
+nav.bottom button[aria-current="page"] svg{background:var(--pri-soft)}
+
+dialog.sheet{margin:auto auto 0;width:min(680px,100%);max-width:100%;max-height:90vh;max-height:90dvh;overscroll-behavior:contain;border:0;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));background:var(--surface);color:var(--ink);overflow:auto}
+dialog.sheet::backdrop{background:rgba(0,0,0,.45)}
+dialog.sheet h3{margin:0 0 12px;font-size:1.25rem}
+dialog.sheet h3:focus{outline:none}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+dialog.sheet > .actions:last-child{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom,0px));background:var(--surface);margin:10px -18px calc(-18px - env(safe-area-inset-bottom,0px));padding:10px 18px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);z-index:1}
+
+/* φωτογραφία σε όλη την οθόνη */
+.pv{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;padding:12px}
+.pv.on{display:flex}
+.pv img{max-width:100%;max-height:100%;object-fit:contain}
+.pv button{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px}
+/* οδηγός βήμα βήμα */
+.step{position:fixed;inset:0;z-index:40;background:var(--bg);display:none;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.step.on{display:flex}
+.step .stop{display:flex;justify-content:space-between;align-items:center;gap:10px;max-width:720px;margin:0 auto;width:100%}
+.step .sbody{flex:1;overflow:auto;max-width:720px;margin:20px auto;width:100%}
+.step .stext{font-size:1.45rem;line-height:1.45;font-weight:500;white-space:pre-wrap}
+.step .snav{display:flex;gap:10px;max-width:720px;margin:0 auto;width:100%}
+.step .snav button{flex:1;padding:16px;font-size:1.05rem}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(var(--navh,80px) + 12px);z-index:70;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;opacity:0;pointer-events:none;transition:.2s;max-width:calc(100% - 32px);font-size:.92rem;display:flex;gap:14px;align-items:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast button{border:0;background:none;color:var(--pri-soft);font-weight:800;padding:0}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<h1>🔧 Μαστορέματα</h1>
-<p>Προσωρινή σελίδα. Η πρώτη κανονική έκδοση έρχεται σύντομα.</p>
-<div class="card">
-  <ul>
-    <li>Εργαλεία</li>
-    <li>Επισκευές</li>
-    <li>Οδηγοί</li>
-    <li>Δεξιότητες</li>
-    <li>Ανταλλακτικά</li>
-  </ul>
+<header class="top"><div class="wrap">
+  <div class="hrow"><h1 id="title">Επισκευές</h1><div class="icons">
+    <button class="icon" type="button" data-a="go" data-tab="search" aria-label="Αναζήτηση"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+    <button class="icon" type="button" data-a="go" data-tab="settings" aria-label="Ρυθμίσεις"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div></div>
+</div></header>
+
+<main class="wrap" id="view"></main>
+
+<nav class="bottom" aria-label="Ενότητες"><div class="wrap" id="nav">
+  <button type="button" data-a="go" data-tab="tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg><span>Εργαλεία</span></button>
+  <button type="button" data-a="go" data-tab="repairs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4"/></svg><span>Επισκευές</span></button>
+  <button type="button" data-a="go" data-tab="guides"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg><span>Οδηγοί</span></button>
+  <button type="button" data-a="go" data-tab="skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M8.2 13.9L7 22l5-3 5 3-1.2-8.1"/></svg><span>Δεξιότητες</span></button>
+  <button type="button" data-a="go" data-tab="parts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></svg><span>Ανταλλακτικά</span></button>
+</div></nav>
+
+<div class="step" id="step">
+  <div class="stop"><b id="stTitle"></b><button class="btn ghost sm" type="button" data-a="stepClose">Κλείσιμο</button></div>
+  <div class="sbody"><div class="muted" id="stNum" style="font-weight:600;margin-bottom:8px"></div><div class="stext" id="stText"></div></div>
+  <div class="snav"><button class="btn ghost" type="button" data-a="stepPrev" id="stPrev">Πίσω</button><button class="btn" type="button" data-a="stepNext" id="stNext">Επόμενο</button></div>
 </div>
-<div class="card">
-  <b>Δοκιμή φωτογραφίας</b>
-  <div>
-    <button data-a="cam">Κάμερα</button>
-    <button data-a="gal">Συλλογή</button>
-  </div>
-  <div id="ph"></div>
-</div>
-<p id="ver"></p>
+<div class="pv" id="pv" data-a="pvClose"><img id="pvImg" alt=""><button class="btn ghost sm" type="button" data-a="pvClose">Κλείσιμο</button></div>
+<input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fileGal" accept="image/*" multiple hidden>
+
+<dialog class="sheet" id="sheet"></dialog>
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button type="button" id="toastUndo">Αναίρεση</button></div>
+
 <script>
-const B=window.AndroidBridge;
-const ph=document.getElementById('ph');
-function msg(t){ph.insertAdjacentHTML('afterbegin','<p>'+t+'</p>');}
-window.__toast=msg;
-window.__onPhotos=list=>{
-  if(!list.length){msg('Δεν προστέθηκε φωτογραφία.');return;}
-  for(const n of list){const img=document.createElement('img');img.src=B.photoUrl(n);img.alt=n;ph.appendChild(img);}
+"use strict";
+/* ============ βοηθητικά ============ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ς/g,'σ').replace(/\s+/g,' ').trim();
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad=n=>String(n).padStart(2,'0');
+const dstr=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today=()=>dstr(new Date());
+const pd=s=>{const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d);};
+const diff=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const DOW3=['Κυρ','Δευ','Τρί','Τετ','Πέμ','Παρ','Σάβ'];
+/* Ημερομηνία: φέτος «Δευ 26/10», παλιότερα «26/10/2025». */
+const dFmt=s=>{if(!s)return '';const d=pd(s);return d.getFullYear()===new Date().getFullYear()?`${DOW3[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`:`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;};
+const rel=s=>{const n=diff(today(),s);if(n===0)return 'σήμερα';if(n===-1)return 'χθες';if(n===1)return 'αύριο';if(n<0&&n>-60)return `πριν ${-n} μέρες`;return dFmt(s);};
+const plural=(n,a,b)=>n===1?a:b;
+const EURF=new Intl.NumberFormat('el-GR',{style:'currency',currency:'EUR'}),eur=n=>EURF.format(Number(n)||0);
+const fmtN=n=>Number(n||0).toLocaleString('el-GR',{maximumFractionDigits:2});
+/* Ποσά/ποσότητες με κόμμα ή τελεία: «12,50», «12.5», «1.234,50», «€ 3». null αν δεν είναι αριθμός. */
+function parseAmt(s){if(s==null)return null;let t=String(s).trim().replace(/€|\s/g,'');if(!t)return null;
+  if(t.includes(',')&&t.includes('.')){if(t.lastIndexOf(',')>t.lastIndexOf('.'))t=t.replace(/\./g,'').replace(',','.');else t=t.replace(/,/g,'');}else t=t.replace(',','.');
+  const n=Number(t);return isFinite(n)?Math.round(n*100)/100:null;}
+const amtIn=n=>n==null||n===''?'':String(n).replace('.',',');
+
+/* ============ αποθήκευση ============ */
+const KEY='mastoremata.v1';
+const NB=window.AndroidBridge||null;
+const DEF=()=>({v:1,tools:{},repairs:{},guides:{},skills:{},parts:{},
+  settings:{theme:'auto',autoBackup:false,lastBackup:null,lastAutoBackup:null,lastOffsite:null}});
+/* kind στη βάση → πεδίο του D */
+const KINDS={tool:'tools',repair:'repairs',guide:'guides',skill:'skills',part:'parts'};
+function fromRecords(rec){const d=DEF();
+  for(const [kind,map] of Object.entries(rec||{}))for(const [id,v] of Object.entries(map||{})){if(KINDS[kind])d[KINDS[kind]][id]=v;else if(kind==='kv')d[id]=v;}
+  return d;}
+function toRecords(d){const m=new Map(),put=(k,id,v,day)=>m.set(k+'\u0001'+id,{kind:k,id:String(id),day:day||null,data:JSON.stringify(v)});
+  for(const [k,f] of Object.entries(KINDS))for(const [id,v] of Object.entries(d[f]||{}))put(k,id,v,k==='repair'?v.d:null);
+  for(const k of ['settings','v'])put('kv',k,d[k]);return m;}
+let lastRec=new Map(),loadOk=false;
+function loadData(){if(NB){try{const d=fromRecords(JSON.parse(NB.loadAll()||'{}'));lastRec=toRecords(d);loadOk=true;return d;}catch(e){return DEF();}}
+  try{const raw=JSON.parse(localStorage.getItem(KEY)||'null');loadOk=true;return Object.assign(DEF(),raw||{});}catch(e){return DEF();}}
+function migrate(d){d.settings=Object.assign(DEF().settings,d.settings||{});for(const f of Object.values(KINDS))if(!d[f]||typeof d[f]!=='object')d[f]={};
+  for(const r of Object.values(d.repairs)){if(!Array.isArray(r.parts))r.parts=[];if(!Array.isArray(r.photos))r.photos=[];}
+  for(const s of Object.values(d.skills))if(!Array.isArray(s.ms))s.ms=[];return d;}
+let D=migrate(loadData());
+let storageWarned=false;
+function persist(){if(NB){const cur=toRecords(D),ops=[];for(const [k,r] of cur){const o=lastRec.get(k);if(!o||o.data!==r.data)ops.push(Object.assign({op:'put'},r));}
+    for(const [k,r] of lastRec)if(!cur.has(k))ops.push({op:'del',kind:r.kind,id:r.id});
+    if(ops.length&&!NB.applyOps(JSON.stringify(ops)))throw new Error('db');lastRec=cur;return;}
+  localStorage.setItem(KEY,JSON.stringify(D));}
+function save(){try{persist();}catch(e){if(!storageWarned){storageWarned=true;toast(NB?'Σφάλμα αποθήκευσης στη βάση. Κράτα αντίγραφο από τις Ρυθμίσεις.':'Ο browser δεν αποθηκεύει τα δεδομένα. Κράτα αντίγραφο από τις Ρυθμίσεις.');}}}
+function commit(){save();render();}
+let ui=Object.assign({tab:'repairs',toolCond:'',repSt:'',skillSt:'learning'},(()=>{try{return JSON.parse(localStorage.getItem('mastoremata.ui')||'{}');}catch(e){return{};}})());
+if(ui.tab==='search')ui.tab='repairs';
+const saveUi=()=>{try{localStorage.setItem('mastoremata.ui',JSON.stringify(ui));}catch(e){}};
+
+/* ============ φωτογραφίες ============ */
+/* Στο Android είναι αρχεία της εφαρμογής (Photos.kt) και οι εγγραφές κρατούν το όνομα. Στον browser: μικρές
+   εικόνες (data URL) στο localStorage, μόνο για δοκιμή. */
+const PKEY='mastoremata.photos';
+let LP=null;const localPhotos=()=>{if(!LP){try{LP=JSON.parse(localStorage.getItem(PKEY)||'{}');}catch(e){LP={};}}return LP;};
+const photoSrc=n=>{if(NB){try{return NB.photoUrl(n)||'';}catch(e){return '';}}return localPhotos()[n]||'';};
+const imgTag=(n,cls)=>{const s=photoSrc(n);return s?`<img class="${cls||''}" src="${esc(s)}" alt="" loading="lazy">`:`<span class="${cls||''}" style="display:grid;place-items:center">📷</span>`;};
+/* Όλες οι φωτογραφίες που αναφέρει ένα σύνολο δεδομένων (για να μη σβηστούν). */
+function photoRefs(d){const s=new Set();for(const r of Object.values((d&&d.repairs)||{}))for(const p of r.photos||[])s.add(p);return s;}
+/* Η JS λέει στο Android ποιες φωτογραφίες χρειάζονται· οι υπόλοιπες σβήνονται. Μόνο αν φόρτωσαν σωστά τα δεδομένα. */
+function prunePhotos(){if(!NB||typeof NB.prunePhotos!=='function'||!loadOk||!Object.keys(D.repairs).length)return;
+  const keep=photoRefs(D),sf=safetyInfo();if(sf)for(const p of photoRefs(sf.data))keep.add(p);
+  try{NB.prunePhotos(JSON.stringify([...keep]));}catch(e){}}
+function fileToJpeg(f){return new Promise(res=>{const r=new FileReader();r.onerror=()=>res(null);r.onload=()=>{const img=new Image();img.onerror=()=>res(null);
+  img.onload=()=>{try{const s=Math.min(1,1280/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8));}catch(e){res(r.result);}};img.src=r.result;};r.readAsDataURL(f);});}
+async function browserPhotos(files){const out=[],lp=localPhotos();for(const f of files){const u=await fileToJpeg(f);if(!u)continue;const n='p-'+uid()+'.jpg';lp[n]=u;out.push(n);}
+  try{localStorage.setItem(PKEY,JSON.stringify(lp));}catch(e){toast('Ο browser δεν χωράει άλλες φωτογραφίες.');}
+  window.__onPhotos(out);}
+function takePhoto(){if(NB)NB.takePhoto();else{const i=$('#fileCam');i.value='';i.click();}}
+function pickPhotos(){if(NB)NB.pickPhotos();else{const i=$('#fileGal');i.value='';i.click();}}
+/* Απάντηση της κάμερας/συλλογής. Αν δεν είναι ανοιχτή επισκευή (π.χ. το Android έκλεισε την εφαρμογή όσο ήταν
+   ανοιχτή η κάμερα), ανοίγει νέα επισκευή με τις φωτογραφίες. */
+window.__onPhotos=list=>{list=(list||[]).filter(Boolean);if(!list.length)return;
+  if(draft&&sheet.open&&$('#rPhotos')){draft.photos.push(...list);drawPhotos();toast(list.length>1?`Προστέθηκαν ${list.length} φωτογραφίες`:'Προστέθηκε η φωτογραφία');}
+  else repairEdit(null,list);};
+function showPhoto(n){const s=photoSrc(n);if(!s)return;$('#pvImg').src=s;$('#pv').classList.add('on');}
+function closePhoto(){$('#pv').classList.remove('on');$('#pvImg').removeAttribute('src');}
+
+/* ============ toast / φύλλα ============ */
+let toastT;
+function toast(msg,undo){const t=$('#toast');$('#toastMsg').textContent=msg;const u=$('#toastUndo');u.style.display=undo?'':'none';
+  u.onclick=()=>{undo&&undo();t.classList.remove('show');};t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),undo?5000:2400);}
+const sheet=$('#sheet');
+function openSheet(html){sheet.innerHTML=html;if(!sheet.open)sheet.showModal();sheet.scrollTop=0;
+  const h=sheet.querySelector('h3');if(h){h.tabIndex=-1;try{h.focus({preventScroll:true});}catch(e){}}}
+function closeSheet(){draft=null;if(sheet.open)sheet.close();}
+sheet.addEventListener('click',e=>{if(e.target===sheet)closeSheet();});
+sheet.addEventListener('close',()=>{draft=null;});
+function snapUndo(){const copy=JSON.stringify(D);return()=>{D=migrate(JSON.parse(copy));commit();};}
+const segBtns=(g,opts,cur)=>`<div class="seg" data-g="${g}">${opts.map(([v,l])=>`<button type="button" data-a="segPick" data-v="${v}" aria-pressed="${v===cur}">${l}</button>`).join('')}</div>`;
+const segVal=g=>{const b=sheet.querySelector(`[data-g="${g}"] [aria-pressed="true"]`);return b?b.dataset.v:'';};
+const val=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
+const datalist=(id,arr)=>`<datalist id="${id}">${[...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'el')).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
+const byName=(a,b)=>String(a.name||a.title||'').localeCompare(String(b.name||b.title||''),'el');
+const emptyMsg=(t,x)=>`<div class="empty"><strong>${t}</strong>${x}</div>`;
+
+/* ============ ΕΡΓΑΛΕΙΑ ============ */
+const COND={good:['Καλό','ok'],care:['Θέλει φροντίδα','warn'],broken:['Χαλασμένο','bad'],lent:['Δανεισμένο','warn']};
+const condTag=t=>{const c=COND[t.cond]||COND.good;return `<span class="tag ${c[1]}">${c[0]}${t.cond==='lent'&&t.lentTo?': '+esc(t.lentTo):''}</span>`;};
+const allPlaces=()=>Object.values(D.tools).map(t=>t.place).concat(Object.values(D.parts).map(p=>p.place));
+function vTools(){const all=Object.values(D.tools),f=ui.toolCond,L=all.filter(t=>!f||(t.cond||'good')===f);
+  let h=`<button class="btn add" type="button" data-a="toolNew">+ Νέο εργαλείο</button>`;
+  if(!all.length)return h+emptyMsg('Δεν έχεις γράψει εργαλεία','Γράψε τι έχεις, πού το βάζεις και σε τι κατάσταση είναι, για να το βρίσκεις όταν το χρειαστείς.');
+  const cnt=k=>all.filter(t=>(t.cond||'good')===k).length;
+  h+=`<div class="chips"><button class="chip" type="button" data-a="toolCond" data-v="" aria-pressed="${!f}">Όλα<small>${all.length}</small></button>${Object.entries(COND).filter(([k])=>cnt(k)||f===k).map(([k,c])=>`<button class="chip" type="button" data-a="toolCond" data-v="${k}" aria-pressed="${f===k}">${c[0]}<small>${cnt(k)}</small></button>`).join('')}</div>`;
+  const groups={};for(const t of L)(groups[t.place||'']=groups[t.place||'']||[]).push(t);
+  for(const p of Object.keys(groups).sort((a,b)=>!a?1:!b?-1:a.localeCompare(b,'el')))
+    h+=`<h2>${esc(p||'Χωρίς θέση')}</h2>`+groups[p].sort(byName).map(t=>`<button class="item" type="button" data-a="toolOpen" data-id="${t.id}"><span class="grow"><b>${esc(t.name)}</b><span class="sub">${condTag(t)}${t.note?' · '+esc(t.note):''}</span></span></button>`).join('');
+  if(!L.length)h+=emptyMsg('Τίποτα εδώ','Δεν υπάρχει εργαλείο σε αυτή την κατάσταση.');
+  return h;}
+function toolSheet(id){const t=id?D.tools[id]:{cond:'good'};if(!t)return;
+  openSheet(`<h3>${id?esc(t.name):'Νέο εργαλείο'}</h3>
+  <label class="f"><span>Όνομα</span><input type="text" id="tName" value="${esc(t.name||'')}" placeholder="π.χ. Δράπανο μπαταρίας"></label>
+  <label class="f"><span>Πού βρίσκεται</span><input type="text" id="tPlace" list="dlPlaces" value="${esc(t.place||'')}" placeholder="π.χ. Αποθήκη, ράφι 2"></label>${datalist('dlPlaces',allPlaces())}
+  <div class="f"><span>Κατάσταση</span>${segBtns('cond',Object.entries(COND).map(([k,c])=>[k,c[0]]),t.cond||'good')}</div>
+  <label class="f" id="tLentWrap"${t.cond==='lent'?'':' hidden'}><span>Σε ποιον το δάνεισα</span><input type="text" id="tLent" value="${esc(t.lentTo||'')}"></label>
+  <label class="f"><span>Σημείωση</span><textarea id="tNote" placeholder="π.χ. μύτες 6–10 mm στο κουτί, θέλει λάδωμα">${esc(t.note||'')}</textarea></label>
+  <div class="actions"><button class="btn grow" type="button" data-a="toolSave" data-id="${id||''}">Αποθήκευση</button>${id?`<button class="btn warn" type="button" data-a="toolDel" data-id="${id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
+
+/* ============ ΑΝΤΑΛΛΑΚΤΙΚΑ ============ */
+const partCost=p=>p.price!=null&&p.price!==''?`${eur(p.price)}${p.unit?' / '+esc(p.unit):''}`:'';
+const usedIn=pid=>Object.values(D.repairs).filter(r=>(r.parts||[]).some(l=>l.pid===pid)).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+function vParts(){const L=Object.values(D.parts).sort(byName);
+  let h=`<button class="btn add" type="button" data-a="partNew">+ Νέο ανταλλακτικό</button>`;
+  if(!L.length)return h+emptyMsg('Δεν έχεις γράψει ανταλλακτικά','Βίδες, φλάντζες, λάμπες, φίλτρα: πόσα έχεις, πού τα βάζεις και από πού τα πήρες. Όταν τα βάζεις σε επισκευή, το απόθεμα μειώνεται μόνο του.');
+  const out=L.filter(p=>(+p.qty||0)<=0).length;if(out)h+=`<p class="sum">Τελείωσαν: <b>${out}</b></p>`;
+  return h+L.map(p=>{const q=+p.qty||0;return `<button class="item" type="button" data-a="partOpen" data-id="${p.id}"><span class="grow"><b>${esc(p.name)}</b><span class="sub">${q>0?`${fmtN(q)} ${esc(p.unit||'τεμ.')}`:'<span class="tag bad">Τελείωσε</span>'}${p.place?' · '+esc(p.place):''}${p.shop?' · από '+esc(p.shop):''}${partCost(p)?' · '+partCost(p):''}</span></span></button>`;}).join('');}
+function partSheet(id){const p=id?D.parts[id]:{qty:1};if(!p)return;const used=id?usedIn(id):[];
+  openSheet(`<h3>${id?esc(p.name):'Νέο ανταλλακτικό'}</h3>
+  <label class="f"><span>Όνομα</span><input type="text" id="pName" value="${esc(p.name||'')}" placeholder="π.χ. Φλάντζα 1/2&quot;"></label>
+  <div class="g2"><label class="f"><span>Πόσα έχω</span><input type="text" inputmode="decimal" id="pQty" value="${amtIn(p.qty)}"></label><label class="f"><span>Μονάδα</span><input type="text" id="pUnit" value="${esc(p.unit||'')}" placeholder="τεμ., μ., κουτί"></label></div>
+  <label class="f"><span>Πού το έχω</span><input type="text" id="pPlace" list="dlPlaces" value="${esc(p.place||'')}" placeholder="π.χ. Συρταριέρα, 3ο συρτάρι"></label>${datalist('dlPlaces',allPlaces())}
+  <label class="f"><span>Πού το αγόρασα</span><input type="text" id="pShop" list="dlShops" value="${esc(p.shop||'')}" placeholder="π.χ. σιδηροπωλείο της γειτονιάς"></label>${datalist('dlShops',Object.values(D.parts).map(x=>x.shop))}
+  <div class="g2"><label class="f"><span>Τιμή ανά μονάδα (€)</span><input type="text" inputmode="decimal" id="pPrice" value="${amtIn(p.price)}" placeholder="π.χ. 1,20"></label><label class="f"><span>Πότε</span><input type="date" id="pBought" value="${esc(p.bought||'')}"></label></div>
+  <label class="f"><span>Σημείωση</span><input type="text" id="pNote" value="${esc(p.note||'')}" placeholder="π.χ. κωδικός, διάσταση"></label>
+  ${used.length?`<div class="f"><span>Μπήκε σε</span>${used.map(r=>`<div><button class="link" type="button" data-a="repairOpen" data-id="${r.id}">${esc(r.title)}</button> <span class="muted small">${dFmt(r.d)}</span></div>`).join('')}</div>`:''}
+  <div class="actions"><button class="btn grow" type="button" data-a="partSave" data-id="${id||''}">Αποθήκευση</button>${id?`<button class="btn warn" type="button" data-a="partDel" data-id="${id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
+
+/* ============ ΕΠΙΣΚΕΥΕΣ ============ */
+/* Επισκευή: {id,title,d,how,status:'done'|'open',parts:[{pid?,name,qty,price}],extra,photos:[ονόματα],guide}.
+   Ανταλλακτικά από το απόθεμα (pid): η αποθήκευση/διαγραφή αλλάζει το απόθεμα κατά τη διαφορά (stockDelta). */
+const lineCost=l=>(+l.qty||0)*(+l.price||0);
+const repCost=r=>Math.round(((r.parts||[]).reduce((s,l)=>s+lineCost(l),0)+(+r.extra||0))*100)/100;
+const pidQty=r=>{const m={};for(const l of (r&&r.parts)||[])if(l.pid)m[l.pid]=(m[l.pid]||0)+(+l.qty||0);return m;};
+function stockDelta(oldR,newR){const a=pidQty(oldR),b=pidQty(newR);for(const pid of new Set([...Object.keys(a),...Object.keys(b)])){const p=D.parts[pid];if(!p)continue;
+  p.qty=Math.round(((+p.qty||0)-((b[pid]||0)-(a[pid]||0)))*100)/100;}}
+function vRepairs(){const all=Object.values(D.repairs),f=ui.repSt;
+  let h=`<button class="btn add" type="button" data-a="repairNew">+ Νέα επισκευή</button>`;
+  if(!all.length)return h+emptyMsg('Καμία επισκευή ακόμα','Γράψε τι έφτιαξες, πότε και πώς, με φωτογραφίες, ανταλλακτικά και κόστος. Την επόμενη φορά θα ξέρεις τι έκανες.');
+  const y=today().slice(0,4),yc=all.filter(r=>(r.d||'').startsWith(y)).reduce((s,r)=>s+repCost(r),0),open=all.filter(r=>r.status==='open').length;
+  h+=segBtnsUi('repSt',[['','Όλες'],['open',`Σε εξέλιξη${open?' ('+open+')':''}`],['done','Έγιναν']],f);
+  h+=`<p class="sum">Φέτος: <b>${all.filter(r=>(r.d||'').startsWith(y)).length}</b> ${plural(all.filter(r=>(r.d||'').startsWith(y)).length,'επισκευή','επισκευές')}${yc?` · κόστος <b>${eur(yc)}</b>`:''}</p>`;
+  const L=all.filter(r=>!f||(r.status||'done')===f).sort((a,b)=>((a.status==='open')===(b.status==='open')?0:a.status==='open'?-1:1)||(b.d||'').localeCompare(a.d||''));
+  if(!L.length)return h+emptyMsg('Τίποτα εδώ',f==='open'?'Δεν έχεις επισκευή σε εξέλιξη.':'Δεν υπάρχουν επισκευές με αυτό το φίλτρο.');
+  return h+L.map(repairItem).join('');}
+const repairItem=r=>{const c=repCost(r),n=(r.photos||[]).length;return `<button class="item" type="button" data-a="repairOpen" data-id="${r.id}">${n?imgTag(r.photos[0],'thumb'):''}<span class="grow"><b>${esc(r.title)}</b><span class="sub">${r.status==='open'?'<span class="tag warn">Σε εξέλιξη</span> ':''}${dFmt(r.d)}${c?' · '+eur(c):''}${n>1?` · 📷 ${n}`:''}</span></span></button>`;};
+const segBtnsUi=(k,opts,cur)=>`<div class="seg">${opts.map(([v,l])=>`<button type="button" data-a="uiSeg" data-k="${k}" data-v="${v}" aria-pressed="${v===cur}">${l}</button>`).join('')}</div>`;
+function repairView(id){const r=D.repairs[id];if(!r)return;const c=repCost(r),g=r.guide&&D.guides[r.guide];
+  openSheet(`<h3>${esc(r.title)}</h3>
+  <p class="muted" style="margin:-6px 0 10px">${dFmt(r.d)}${r.status==='open'?' · <span class="tag warn">Σε εξέλιξη</span>':''}</p>
+  ${r.how?`<div class="pre" style="margin-bottom:12px">${esc(r.how)}</div>`:''}
+  ${(r.photos||[]).length?`<div class="ph">${r.photos.map(n=>`<figure><button class="link" type="button" data-a="photoShow" data-n="${esc(n)}" style="display:block;width:100%">${imgTag(n)}</button></figure>`).join('')}</div>`:''}
+  ${(r.parts||[]).length?`<b>Ανταλλακτικά</b><table class="pt">${r.parts.map(l=>`<tr><td>${l.pid&&D.parts[l.pid]?`<button class="link" type="button" data-a="partOpen" data-id="${l.pid}">${esc(l.name)}</button>`:esc(l.name)}${(+l.qty||0)!==1?` × ${fmtN(l.qty)}`:''}</td><td class="n">${l.price!=null&&l.price!==''?eur(lineCost(l)):''}</td></tr>`).join('')}${+r.extra?`<tr><td>Άλλα έξοδα</td><td class="n">${eur(r.extra)}</td></tr>`:''}</table>`:(+r.extra?`<p>Άλλα έξοδα: ${eur(r.extra)}</p>`:'')}
+  ${c?`<div class="total"><span>Σύνολο</span><span class="num">${eur(c)}</span></div>`:''}
+  ${g?`<p>Οδηγός: <button class="link" type="button" data-a="guideOpen" data-id="${g.id}">${esc(g.title)}</button></p>`:''}
+  <div class="actions"><button class="btn grow" type="button" data-a="repairEdit" data-id="${id}">Επεξεργασία</button>${r.status==='open'?`<button class="btn ghost" type="button" data-a="repairDone" data-id="${id}">Έγινε</button>`:''}<button class="btn ghost" type="button" data-a="repairShare" data-id="${id}">Κοινοποίηση</button>${!g&&r.how?`<button class="btn ghost" type="button" data-a="guideFromRepair" data-id="${id}">Κάν’ τον οδηγό</button>`:''}</div>`);}
+/* Η επισκευή που επεξεργάζεσαι (αντίγραφο): εκεί μπαίνουν οι φωτογραφίες και οι γραμμές ανταλλακτικών μέχρι την «Αποθήκευση». */
+let draft=null;
+function repairEdit(id,photos){const r=id?D.repairs[id]:null;if(id&&!r)return;
+  const d=r?JSON.parse(JSON.stringify(r)):{id:null,title:'',d:today(),how:'',status:'done',parts:[],extra:null,photos:[],guide:''};
+  d.parts=d.parts.map(l=>Object.assign({},l,{qty:amtIn(l.qty),price:amtIn(l.price)}));if(photos)d.photos.push(...photos);
+  const stock=Object.values(D.parts).sort(byName),guides=Object.values(D.guides).sort(byName);
+  openSheet(`<h3>${r?'Επεξεργασία':'Νέα επισκευή'}</h3>
+  <label class="f"><span>Τι επισκεύασα</span><input type="text" id="rTitle" value="${esc(d.title)}" placeholder="π.χ. Στάζει η μπαταρία της κουζίνας"></label>
+  <div class="g2"><label class="f"><span>Πότε</span><input type="date" id="rDate" value="${esc(d.d||today())}"></label><div class="f"><span>Κατάσταση</span>${segBtns('st',[['done','Έγινε'],['open','Σε εξέλιξη']],d.status||'done')}</div></div>
+  <label class="f"><span>Πώς το έκανα</span><textarea id="rHow" placeholder="Τι βρήκα, τι άλλαξα, τι πρόσεξα">${esc(d.how||'')}</textarea></label>
+  <div class="f"><span>Φωτογραφίες</span><div id="rPhotos"></div><div class="row"><button class="btn ghost sm" type="button" data-a="photoCam">📷 Κάμερα</button><button class="btn ghost sm" type="button" data-a="photoGal">🖼️ Συλλογή</button></div></div>
+  <div class="f"><span>Ανταλλακτικά</span><div id="rParts"></div>
+   <div class="row">${stock.length?`<select id="rPick" data-ch="rPick" style="flex:1;min-width:0"><option value="">+ Από τα ανταλλακτικά μου…</option>${stock.map(p=>`<option value="${p.id}">${esc(p.name)} (${fmtN(+p.qty||0)})</option>`).join('')}</select>`:''}<button class="btn ghost sm" type="button" data-a="rLineAdd">+ Άλλο</button></div></div>
+  <label class="f"><span>Άλλα έξοδα (€)</span><input type="text" inputmode="decimal" id="rExtra" data-in="rExtra" value="${amtIn(d.extra)}" placeholder="π.χ. τεχνίτης, μεταφορικά"></label>
+  <div class="total"><span>Σύνολο</span><span class="num" id="rTotal"></span></div>
+  ${guides.length?`<label class="f"><span>Οδηγός που ακολούθησα</span><select id="rGuide"><option value="">—</option>${guides.map(g=>`<option value="${g.id}"${g.id===d.guide?' selected':''}>${esc(g.title)}</option>`).join('')}</select></label>`:''}
+  <div class="actions"><button class="btn grow" type="button" data-a="repairSave">Αποθήκευση</button>${r?`<button class="btn warn" type="button" data-a="repairDel" data-id="${r.id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);
+  draft=d;drawPhotos();drawParts();}
+function drawPhotos(){const el=$('#rPhotos');if(!el||!draft)return;
+  el.innerHTML=draft.photos.length?`<div class="ph">${draft.photos.map((n,i)=>`<figure><button class="link" type="button" data-a="photoShow" data-n="${esc(n)}" style="display:block;width:100%">${imgTag(n)}</button><button class="x" type="button" data-a="rPhotoDel" data-i="${i}" aria-label="Αφαίρεση φωτογραφίας">×</button></figure>`).join('')}</div>`:'';}
+function drawParts(){const el=$('#rParts');if(!el||!draft)return;
+  el.innerHTML=draft.parts.length?`<div class="plhead"><span>Τι</span><span>Πόσα</span><span>€ / τεμ.</span><span></span></div><div class="lines">${draft.parts.map((l,i)=>`<div class="pline"><input type="text" data-in="rLine" data-i="${i}" data-f="name" value="${esc(l.name)}" placeholder="Όνομα" aria-label="Όνομα"><input type="text" inputmode="decimal" data-in="rLine" data-i="${i}" data-f="qty" value="${esc(l.qty)}" aria-label="Πόσα"><input type="text" inputmode="decimal" data-in="rLine" data-i="${i}" data-f="price" value="${esc(l.price)}" aria-label="Τιμή"><button class="x" type="button" data-a="rLineDel" data-i="${i}" aria-label="Αφαίρεση">×</button></div>`).join('')}</div>`:'';
+  drawTotal();}
+const draftClean=()=>({parts:draft.parts.filter(l=>String(l.name||'').trim()).map(l=>{const o={name:String(l.name).trim(),qty:parseAmt(l.qty)??1,price:parseAmt(l.price)};if(l.pid)o.pid=l.pid;return o;}),extra:parseAmt(val('rExtra'))});
+function drawTotal(){const el=$('#rTotal');if(el&&draft)el.textContent=eur(repCost(draftClean()));}
+function repairText(r){const L=[`🔧 ${r.title} (${dFmt(r.d)})`];if(r.how)L.push(r.how);
+  if((r.parts||[]).length)L.push('Ανταλλακτικά: '+r.parts.map(l=>l.name+((+l.qty||0)!==1?` ×${fmtN(l.qty)}`:'')).join(', '));
+  const c=repCost(r);if(c)L.push('Κόστος: '+eur(c));return L.join('\n');}
+
+/* ============ ΟΔΗΓΟΙ ============ */
+const stepsOf=g=>String(g.steps||'').split('\n').map(s=>s.trim()).filter(Boolean);
+const guideUsed=gid=>Object.values(D.repairs).filter(r=>r.guide===gid).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+function vGuides(){const L=Object.values(D.guides).sort(byName);
+  let h=`<button class="btn add" type="button" data-a="guideNew">+ Νέος οδηγός</button>`;
+  if(!L.length)return h+emptyMsg('Δεν έχεις οδηγούς','Οι δικές σου σημειώσεις βήμα βήμα, π.χ. «Αλλαγή φλάντζας μπαταρίας» ή «Καθάρισμα σιφωνιού». Μπορείς να φτιάξεις οδηγό και από μια επισκευή.');
+  return h+L.map(g=>{const n=stepsOf(g).length,u=guideUsed(g.id).length;return `<button class="item" type="button" data-a="guideOpen" data-id="${g.id}"><span class="grow"><b>${esc(g.title)}</b><span class="sub">${n} ${plural(n,'βήμα','βήματα')}${u?` · σε ${u} ${plural(u,'επισκευή','επισκευές')}`:''}${g.need?' · '+esc(g.need):''}</span></span></button>`;}).join('');}
+function guideView(id){const g=D.guides[id];if(!g)return;const S=stepsOf(g),u=guideUsed(id);
+  openSheet(`<h3>${esc(g.title)}</h3>
+  ${g.need?`<p><b>Χρειάζεται:</b> ${esc(g.need)}</p>`:''}
+  ${S.length?`<ol class="steps">${S.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:'<p class="muted">Δεν έχει βήματα ακόμα.</p>'}
+  ${g.note?`<div class="pre muted" style="margin-bottom:10px">${esc(g.note)}</div>`:''}
+  ${u.length?`<p class="small"><b>Χρησιμοποιήθηκε:</b> ${u.map(r=>`<button class="link" type="button" data-a="repairOpen" data-id="${r.id}">${esc(r.title)}</button> <span class="muted">${dFmt(r.d)}</span>`).join(' · ')}</p>`:''}
+  <div class="actions">${S.length?`<button class="btn grow" type="button" data-a="stepStart" data-id="${id}">Βήμα βήμα</button>`:''}<button class="btn ghost" type="button" data-a="guideEdit" data-id="${id}">Επεξεργασία</button><button class="btn ghost" type="button" data-a="guideShare" data-id="${id}">Κοινοποίηση</button></div>`);}
+function guideEdit(id,pre){const g=id?D.guides[id]:(pre||{});if(!g)return;
+  openSheet(`<h3>${id?'Επεξεργασία οδηγού':'Νέος οδηγός'}</h3>
+  <label class="f"><span>Τίτλος</span><input type="text" id="gTitle" value="${esc(g.title||'')}" placeholder="π.χ. Αλλαγή φλάντζας μπαταρίας"></label>
+  <label class="f"><span>Τι χρειάζεται</span><input type="text" id="gNeed" value="${esc(g.need||'')}" placeholder="π.χ. γαλλικό κλειδί, φλάντζα 1/2&quot;, τεφλόν"></label>
+  <label class="f"><span>Βήματα (ένα σε κάθε γραμμή)</span><textarea id="gSteps" style="min-height:180px" placeholder="Κλείνω τον γενικό διακόπτη νερού&#10;Ξεβιδώνω τη λαβή&#10;…">${esc(g.steps||'')}</textarea></label>
+  <label class="f"><span>Σημειώσεις</span><textarea id="gNote" placeholder="Προσοχή σε…, τι έμαθα">${esc(g.note||'')}</textarea></label>
+  <div class="actions"><button class="btn grow" type="button" data-a="guideSave" data-id="${id||''}" data-from="${esc((pre&&pre.from)||'')}">Αποθήκευση</button>${id?`<button class="btn warn" type="button" data-a="guideDel" data-id="${id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
+/* Βήμα βήμα: σε όλη την οθόνη, η οθόνη του κινητού μένει αναμμένη. */
+let stp=null;
+function stepDraw(){const S=stepsOf(D.guides[stp.id]||{});if(!S.length){stepClose();return;}stp.i=Math.max(0,Math.min(stp.i,S.length-1));
+  $('#stTitle').textContent=D.guides[stp.id].title;$('#stNum').textContent=`Βήμα ${stp.i+1} από ${S.length}`;$('#stText').textContent=S[stp.i];
+  $('#stPrev').disabled=stp.i===0;$('#stNext').textContent=stp.i===S.length-1?'Τέλος':'Επόμενο';}
+function stepOpen(id){closeSheet();stp={id,i:0};$('#step').classList.add('on');setWake(true);stepDraw();}
+function stepClose(){stp=null;$('#step').classList.remove('on');setWake(false);}
+function setWake(on){if(NB){try{NB.keepScreenOn(!!on);}catch(e){}}}
+
+/* ============ ΔΕΞΙΟΤΗΤΕΣ ============ */
+const SKST=[['learning','Μαθαίνω'],['later','Κάποια στιγμή'],['done','Τα έμαθα']];
+const msSorted=s=>(s.ms||[]).slice().sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+function vSkills(){const all=Object.values(D.skills),f=ui.skillSt||'learning';
+  let h=`<button class="btn add" type="button" data-a="skillNew">+ Νέα δεξιότητα</button>`;
+  if(!all.length)return h+emptyMsg('Καμία δεξιότητα ακόμα','Τι μαθαίνεις (π.χ. συγκόλληση, πλακάκι, ηλεκτρολογικά); Γράψε ορόσημα με ημερομηνία: «πρώτη ραφή που κράτησε».');
+  h+=segBtnsUi('skillSt',SKST.map(([k,l])=>{const n=all.filter(s=>(s.status||'learning')===k).length;return [k,l+(n?` (${n})`:'')];}),f);
+  const L=all.filter(s=>(s.status||'learning')===f).sort(byName);
+  if(!L.length)return h+emptyMsg('Τίποτα εδώ','Δεν υπάρχει δεξιότητα σε αυτή την κατάσταση.');
+  return h+L.map(s=>{const m=msSorted(s),last=m[0];return `<button class="item" type="button" data-a="skillOpen" data-id="${s.id}"><span class="grow"><b>${esc(s.name)}</b><span class="sub">${m.length?`${m.length} ${plural(m.length,'ορόσημο','ορόσημα')} · τελευταίο: ${esc(last.t)} (${rel(last.d)})`:'Χωρίς ορόσημα ακόμα'}</span></span></button>`;}).join('');}
+function skillView(id){const s=D.skills[id];if(!s)return;const m=msSorted(s);
+  openSheet(`<h3>${esc(s.name)}</h3>${segBtns('sk',SKST,s.status||'learning').replace('<div class="seg"','<div class="seg" data-skill="'+id+'"')}
+  ${s.note?`<div class="pre muted" style="margin-bottom:10px">${esc(s.note)}</div>`:''}
+  <b>Ορόσημα</b><div id="msList" style="margin:4px 0 10px">${m.length?m.map(x=>`<div class="ms"><span class="d">${dFmt(x.d)}</span><span class="grow">${esc(x.t)}</span><button class="x" type="button" data-a="msDel" data-id="${id}" data-m="${x.id}" aria-label="Διαγραφή">×</button></div>`).join(''):'<p class="muted small">Κανένα ακόμα.</p>'}</div>
+  <label class="f"><span>Νέο ορόσημο</span><input type="text" id="msText" data-enter="msAdd" placeholder="π.χ. Πρώτη ραφή που κράτησε"></label>
+  <div class="row" style="margin-bottom:6px"><input type="date" id="msDate" value="${today()}" style="flex:1"><button class="btn" type="button" data-a="msAdd" data-id="${id}">Προσθήκη</button></div>
+  <div class="actions"><button class="btn ghost grow" type="button" data-a="skillEdit" data-id="${id}">Επεξεργασία</button><button class="btn ghost" type="button" data-a="close">Κλείσιμο</button></div>`);}
+function skillEdit(id){const s=id?D.skills[id]:{};if(!s)return;
+  openSheet(`<h3>${id?'Επεξεργασία':'Νέα δεξιότητα'}</h3>
+  <label class="f"><span>Τι μαθαίνω</span><input type="text" id="sName" value="${esc(s.name||'')}" placeholder="π.χ. Ηλεκτροσυγκόλληση"></label>
+  <label class="f"><span>Σημειώσεις</span><textarea id="sNote" placeholder="Από πού μαθαίνω, τι θέλω να καταφέρω">${esc(s.note||'')}</textarea></label>
+  <div class="actions"><button class="btn grow" type="button" data-a="skillSave" data-id="${id||''}">Αποθήκευση</button>${id?`<button class="btn warn" type="button" data-a="skillDel" data-id="${id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
+
+/* ============ ΑΝΑΖΗΤΗΣΗ ============ */
+let searchQ='',prevTab='repairs';
+function search(q){const n=norm(q);if(n.length<2)return [];const words=n.split(' '),hit=(...f)=>{const t=norm(f.join(' '));return words.every(w=>t.includes(w));},out=[];
+  const T=Object.values(D.tools).filter(t=>hit(t.name,t.place,t.note,t.lentTo)).sort(byName);if(T.length)out.push(['Εργαλεία',T.map(t=>`<button class="item" type="button" data-a="toolOpen" data-id="${t.id}"><span class="grow"><b>${esc(t.name)}</b><span class="sub">${condTag(t)}${t.place?' · '+esc(t.place):''}</span></span></button>`)]);
+  const R=Object.values(D.repairs).filter(r=>hit(r.title,r.how,(r.parts||[]).map(l=>l.name).join(' '))).sort((a,b)=>(b.d||'').localeCompare(a.d||''));if(R.length)out.push(['Επισκευές',R.map(repairItem)]);
+  const G=Object.values(D.guides).filter(g=>hit(g.title,g.need,g.steps,g.note)).sort(byName);if(G.length)out.push(['Οδηγοί',G.map(g=>`<button class="item" type="button" data-a="guideOpen" data-id="${g.id}"><span class="grow"><b>${esc(g.title)}</b><span class="sub">${stepsOf(g).length} βήματα</span></span></button>`)]);
+  const S=Object.values(D.skills).filter(s=>hit(s.name,s.note,(s.ms||[]).map(m=>m.t).join(' '))).sort(byName);if(S.length)out.push(['Δεξιότητες',S.map(s=>`<button class="item" type="button" data-a="skillOpen" data-id="${s.id}"><span class="grow"><b>${esc(s.name)}</b></span></button>`)]);
+  const P=Object.values(D.parts).filter(p=>hit(p.name,p.place,p.shop,p.note)).sort(byName);if(P.length)out.push(['Ανταλλακτικά',P.map(p=>`<button class="item" type="button" data-a="partOpen" data-id="${p.id}"><span class="grow"><b>${esc(p.name)}</b><span class="sub">${fmtN(+p.qty||0)} ${esc(p.unit||'τεμ.')}${p.place?' · '+esc(p.place):''}</span></span></button>`)]);
+  return out;}
+const searchHtml=()=>{const r=search(searchQ);return norm(searchQ).length<2?'<p class="muted small">Γράψε τουλάχιστον 2 γράμματα. Ψάχνει σε όλες τις ενότητες (και στις σημειώσεις).</p>':r.length?r.map(([t,a])=>`<h2>${t} (${a.length})</h2>${a.join('')}`).join(''):emptyMsg('Δεν βρέθηκε τίποτα',`Τίποτα για «${esc(searchQ)}».`);};
+function vSearch(){return `<input type="search" id="q" data-in="q" value="${esc(searchQ)}" placeholder="Εργαλείο, επισκευή, ανταλλακτικό…" aria-label="Αναζήτηση" autocomplete="off"><div class="res" id="res">${searchHtml()}</div>`;}
+
+/* ============ ΡΥΘΜΙΣΕΙΣ / ΑΝΤΙΓΡΑΦΑ ============ */
+function applyTheme(){const t=D.settings.theme||'auto',el=document.documentElement;if(t==='auto')el.removeAttribute('data-theme');else el.setAttribute('data-theme',t);
+  if(!NB)return;try{const cs=getComputedStyle(el),bg=cs.getPropertyValue('--bg').trim(),sf=cs.getPropertyValue('--surface').trim(),dark=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+    if(/^#[0-9a-f]{6}$/i.test(bg)&&/^#[0-9a-f]{6}$/i.test(sf))NB.setBars(bg,sf,dark);else NB.setTheme(dark);}catch(e){}}
+const backupObj=()=>({app:'mastoremata',v:1,exported:new Date().toISOString(),data:D});
+const backupJson=()=>JSON.stringify(backupObj());
+const bkName=ext=>`mastoremata-${today()}.${ext}`;
+function download(name,text,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:mime}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+function autoBackup(force){if(!NB||!D.settings.autoBackup||!NB.backupFolderName())return;const t=today();if(!force&&D.settings.lastAutoBackup===t)return;
+  const ok=NB.writeBackup(`mastoremata-auto-${t}.zip`,backupJson());
+  if(ok){D.settings.lastAutoBackup=t;D.settings.lastBackup=t;save();if(force)toast('Το αντίγραφο αποθηκεύτηκε στον φάκελο');}else if(force)toast('Δεν γράφτηκε το αντίγραφο. Διάλεξε ξανά φάκελο.');}
+/** Κρατά τα τωρινά δεδομένα πριν από επαναφορά ή διαγραφή, για να αναιρούνται αργότερα από τις Ρυθμίσεις. */
+const SAFE='mastoremata.safety';
+function keepSafety(why){const j=JSON.stringify(Object.assign(backupObj(),{day:today(),why}));
+  try{localStorage.setItem(SAFE,j);}catch(e){}try{if(NB&&NB.backupFolderName())NB.writeBackup(`mastoremata-auto-${today()}-prin.zip`,j);}catch(e){}}
+function safetyInfo(){try{const j=JSON.parse(localStorage.getItem(SAFE)||'null');return j&&j.data&&j.day?j:null;}catch(e){return null;}}
+function restoreFromText(txt){let j;try{j=JSON.parse(txt);if(j.app!=='mastoremata'||!j.data)throw 0;}catch(e){toast('Το αρχείο δεν είναι αντίγραφο των Μαστορεμάτων.');return;}
+  if(!confirm(`Επαναφορά από αντίγραφο της ${String(j.exported||'').slice(0,10)}; Τα τωρινά δεδομένα θα αντικατασταθούν (κρατιέται αντίγραφό τους για αναίρεση).`))return;
+  const u=snapUndo();keepSafety('restore');D=migrate(Object.assign(DEF(),j.data));
+  if(!NB&&j.photos){Object.assign(localPhotos(),j.photos);try{localStorage.setItem(PKEY,JSON.stringify(LP));}catch(e){}}
+  save();applyTheme();closeSheet();render();toast('Η επαναφορά ολοκληρώθηκε',u);}
+window.__onFileOpened=txt=>restoreFromText(txt);
+window.__toast=m=>toast(m);
+const LOCALDOCS=['com.android.externalstorage.documents','com.android.providers.downloads.documents','com.android.providers.media.documents'];
+window.__onFileSaved=(ok,name,where)=>{if(!ok){toast('Δεν αποθηκεύτηκε.');return;}
+  if(!/^mastoremata-.*\.(zip|json)$/.test(name||'')){toast(`Αποθηκεύτηκε: ${name}`);return;}
+  const off=!!where&&!LOCALDOCS.includes(where);D.settings.lastBackup=today();if(off)D.settings.lastOffsite=today();save();if(ui.tab==='settings'&&!sheet.open)render();
+  toast(!where?`Αποθηκεύτηκε: ${name}`:!off?`Αποθηκεύτηκε μέσα στο κινητό: ${name}`:where.includes('com.google.android.apps.docs')?'Αποθηκεύτηκε στο Google Drive':`Αποθηκεύτηκε: ${name}`);};
+/* Μετά το «Στείλε στο Drive»: ποια εφαρμογή διαλέχτηκε (ChooserReceiver). */
+function checkShared(){if(!NB||typeof NB.consumeShared!=='function')return;let sh='';try{sh=NB.consumeShared();}catch(e){}if(!sh)return;
+  const pkg=sh.split('|')[0],local=/myfiles|documentsui|externalstorage|files\b/i.test(pkg);D.settings.lastBackup=today();if(!local)D.settings.lastOffsite=today();save();if(ui.tab==='settings'&&!sheet.open)render();
+  toast(pkg.includes('com.google.android.apps.docs')?'Το αντίγραφο πήγε στο Google Drive':local?'Το αντίγραφο αποθηκεύτηκε μέσα στο κινητό':'Το αντίγραφο στάλθηκε');}
+window.__onBackupFolder=name=>{if(name){D.settings.autoBackup=true;save();autoBackup(true);}if(ui.tab==='settings')render();};
+function vSettings(){const s=D.settings,t=today(),folder=NB?NB.backupFolderName():'',nPh=NB&&typeof NB.photoCount==='function'?NB.photoCount():Object.keys(localPhotos()).length;
+  const L=[],line=(st,x)=>L.push(`<div class="stl ${st}"><i></i><span>${x}</span></div>`);
+  if(NB){if(!s.autoBackup||!folder)line('warn','Αυτόματο αντίγραφο: κλειστό');else line(s.lastAutoBackup&&diff(s.lastAutoBackup,t)<=2?'ok':'warn',`Αυτόματο αντίγραφο: ${s.lastAutoBackup?rel(s.lastAutoBackup):'δεν έγινε ακόμα'}`);}
+  line(s.lastOffsite&&diff(s.lastOffsite,t)<=30?'ok':'warn',`Αντίγραφο εκτός κινητού: ${s.lastOffsite?rel(s.lastOffsite):'ποτέ'}`);
+  const sf=safetyInfo();
+  return `<div class="card"><h3>Κατάσταση</h3>${L.join('')}<div class="small muted" style="margin-top:6px">${Object.keys(D.repairs).length} επισκευές · ${Object.keys(D.tools).length} εργαλεία · ${Object.keys(D.parts).length} ανταλλακτικά · ${nPh} φωτογραφίες</div></div>
+  <div class="card"><h3>Εμφάνιση</h3>${segBtnsUi('theme',[['auto','Όπως το κινητό'],['light','Φωτεινό'],['dark','Σκούρο']],s.theme||'auto')}</div>
+  <div class="card"><h3>Αντίγραφο ασφαλείας</h3><p class="small muted" style="margin-top:0">${NB?'Τα δεδομένα και οι φωτογραφίες είναι μόνο μέσα στην εφαρμογή. Αν την απεγκαταστήσεις ή αλλάξεις κινητό, χρειάζεσαι αντίγραφο. Το αντίγραφο είναι ένα αρχείο .zip με όλα, και τις φωτογραφίες.':'Όλα τα δεδομένα μένουν μόνο σε αυτόν τον browser.'}${s.lastBackup?` Τελευταίο: ${dFmt(s.lastBackup)}.`:''}</p>
+   ${NB?`<label class="toggle"><input type="checkbox" data-in="setAuto"${s.autoBackup&&folder?' checked':''}> Αυτόματο αντίγραφο κάθε μέρα</label>
+    <div class="small">Φάκελος: <b>${esc(folder||'δεν έχει οριστεί')}</b>${s.lastAutoBackup?` · τελευταίο ${dFmt(s.lastAutoBackup)}`:''}</div><div class="small muted">Γίνεται μία φορά τη μέρα, όταν ανοίγεις την εφαρμογή. Κρατιούνται των 7 τελευταίων ημερών και, πιο πίσω, ένα ανά εβδομάδα για 2 μήνες.</div>
+    <div class="actions"><button class="btn ghost sm" type="button" data-a="pickFolder">${folder?'Άλλος φάκελος':'Επιλογή φακέλου'}</button>${folder?'<button class="btn ghost sm" type="button" data-a="autoNow">Αντίγραφο τώρα</button>':''}</div>`:''}
+   <div class="actions"><button class="btn" type="button" data-a="backup">Αποθήκευση αντιγράφου</button>${NB?`<button class="btn ghost" type="button" data-a="backupDrive">Στείλε στο Drive</button><button class="btn ghost" type="button" data-a="restoreNative">Επαναφορά</button>`:`<label class="btn ghost" style="cursor:pointer;display:inline-flex;align-items:center">Επαναφορά<input type="file" accept=".json,application/json" data-ch="restore" hidden></label>`}</div>
+   ${sf?`<p class="small" style="margin:10px 0 0"><button class="link" type="button" data-a="undoSafety">Αναίρεση της ${sf.why==='wipe'?'διαγραφής':'επαναφοράς'} της ${dFmt(sf.day)}</button></p>`:''}</div>
+  <div class="card"><h3>Διαγραφή</h3><button class="btn warn" type="button" data-a="wipe">Διαγραφή όλων των δεδομένων</button></div>
+  <p class="small muted">Μαστορέματα ${NB?'· Android '+esc(NB.appVersion()):'· έκδοση browser'} · λειτουργεί χωρίς σύνδεση</p>`;}
+
+/* ============ οθόνες ============ */
+const TITLES={tools:'Εργαλεία',repairs:'Επισκευές',guides:'Οδηγοί',skills:'Δεξιότητες',parts:'Ανταλλακτικά',search:'Αναζήτηση',settings:'Ρυθμίσεις'};
+const VIEWS={tools:vTools,repairs:vRepairs,guides:vGuides,skills:vSkills,parts:vParts,search:vSearch,settings:vSettings};
+function render(){if(!VIEWS[ui.tab])ui.tab='repairs';$('#title').textContent=TITLES[ui.tab];
+  document.querySelectorAll('#nav button').forEach(b=>{if(b.dataset.tab===ui.tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+  $('#view').innerHTML=VIEWS[ui.tab]();saveUi();}
+function go(tab){if(tab===ui.tab)return;if(ui.tab!=='search'&&ui.tab!=='settings')prevTab=ui.tab;ui.tab=tab;render();window.scrollTo({top:0});
+  if(tab==='search')setTimeout(()=>{const q=$('#q');if(q)q.focus();},50);}
+
+/* ============ ενέργειες (data-a) ============ */
+const A={
+ close:()=>closeSheet(),
+ go:el=>go(el.dataset.tab),
+ segPick:el=>{const g=el.closest('.seg');g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===el)));
+   if(g.dataset.g==='cond'){const w=$('#tLentWrap');if(w)w.hidden=el.dataset.v!=='lent';}
+   if(g.dataset.skill){const s=D.skills[g.dataset.skill];if(s){s.status=el.dataset.v;save();render();}}},
+ uiSeg:el=>{const k=el.dataset.k;if(k==='theme'){D.settings.theme=el.dataset.v;save();applyTheme();render();return;}ui[k]=el.dataset.v;render();},
+ /* εργαλεία */
+ toolNew:()=>toolSheet(null),
+ toolOpen:el=>toolSheet(el.dataset.id),
+ toolCond:el=>{ui.toolCond=el.dataset.v;render();},
+ toolSave:el=>{const name=val('tName');if(!name){toast('Γράψε το όνομα του εργαλείου');return;}const id=el.dataset.id||uid(),old=D.tools[id]||{created:Date.now()},cond=segVal('cond')||'good';
+   const t=Object.assign({},old,{id,name,place:val('tPlace'),cond,note:val('tNote')});if(cond==='lent')t.lentTo=val('tLent');else delete t.lentTo;
+   D.tools[id]=t;closeSheet();commit();toast(el.dataset.id?'Αποθηκεύτηκε':'Προστέθηκε: '+name);},
+ toolDel:el=>{const t=D.tools[el.dataset.id];if(!t)return;const u=snapUndo();delete D.tools[t.id];closeSheet();commit();toast('Διαγράφηκε: '+t.name,u);},
+ /* ανταλλακτικά */
+ partNew:()=>partSheet(null),
+ partOpen:el=>partSheet(el.dataset.id),
+ partSave:el=>{const name=val('pName');if(!name){toast('Γράψε το όνομα του ανταλλακτικού');return;}const id=el.dataset.id||uid(),old=D.parts[id]||{created:Date.now()};
+   D.parts[id]=Object.assign({},old,{id,name,qty:parseAmt(val('pQty'))??0,unit:val('pUnit'),place:val('pPlace'),shop:val('pShop'),price:parseAmt(val('pPrice')),bought:val('pBought'),note:val('pNote')});
+   closeSheet();commit();toast(el.dataset.id?'Αποθηκεύτηκε':'Προστέθηκε: '+name);},
+ partDel:el=>{const p=D.parts[el.dataset.id];if(!p)return;const u=snapUndo();
+   /* Οι επισκευές κρατούν το όνομα του ανταλλακτικού· χάνεται μόνο η σύνδεση με το απόθεμα. */
+   for(const r of Object.values(D.repairs))for(const l of r.parts||[])if(l.pid===p.id)delete l.pid;
+   delete D.parts[p.id];closeSheet();commit();toast('Διαγράφηκε: '+p.name,u);},
+ /* επισκευές */
+ repairNew:()=>repairEdit(null),
+ repairOpen:el=>repairView(el.dataset.id),
+ repairEdit:el=>repairEdit(el.dataset.id),
+ photoCam:()=>takePhoto(),
+ photoGal:()=>pickPhotos(),
+ photoShow:el=>showPhoto(el.dataset.n),
+ pvClose:()=>closePhoto(),
+ rPhotoDel:el=>{if(!draft)return;draft.photos.splice(+el.dataset.i,1);drawPhotos();},
+ rLineAdd:()=>{if(!draft)return;draft.parts.push({name:'',qty:'1',price:''});drawParts();const ins=sheet.querySelectorAll('#rParts input[data-f="name"]');if(ins.length)ins[ins.length-1].focus();},
+ rLineDel:el=>{if(!draft)return;draft.parts.splice(+el.dataset.i,1);drawParts();},
+ repairSave:()=>{if(!draft)return;const title=val('rTitle');if(!title){toast('Γράψε τι επισκεύασες');return;}
+   const c=draftClean(),isNew=!draft.id,id=draft.id||uid(),old=D.repairs[id]||null;
+   const r=Object.assign({},old||{created:Date.now()},{id,title,d:val('rDate')||today(),how:val('rHow'),status:segVal('st')||'done',parts:c.parts,extra:c.extra,photos:draft.photos.slice(),guide:val('rGuide')});
+   if(!r.guide)delete r.guide;stockDelta(old,r);D.repairs[id]=r;closeSheet();commit();toast(isNew?'Η επισκευή καταγράφηκε':'Αποθηκεύτηκε');},
+ repairDel:el=>{const r=D.repairs[el.dataset.id];if(!r)return;if(!confirm(`Διαγραφή της επισκευής «${r.title}»;`))return;const u=snapUndo();stockDelta(r,null);delete D.repairs[r.id];closeSheet();commit();toast('Η επισκευή διαγράφηκε',u);},
+ repairDone:el=>{const r=D.repairs[el.dataset.id];if(!r)return;D.repairs[r.id]=Object.assign({},r,{status:'done'});commit();repairView(r.id);toast('Ολοκληρώθηκε');},
+ repairShare:el=>{const r=D.repairs[el.dataset.id];if(!r)return;const t=repairText(r);if(NB)NB.share(t);else if(navigator.share)navigator.share({text:t}).catch(()=>{});else{try{navigator.clipboard.writeText(t);toast('Αντιγράφηκε');}catch(e){}}},
+ guideFromRepair:el=>{const r=D.repairs[el.dataset.id];if(!r)return;guideEdit(null,{title:r.title,steps:String(r.how||'').split('\n').map(s=>s.replace(/^\s*(\d+[.)]|[-•*])\s*/,'').trim()).filter(Boolean).join('\n'),need:(r.parts||[]).map(l=>l.name).join(', '),from:r.id});},
+ /* οδηγοί */
+ guideNew:()=>guideEdit(null),
+ guideOpen:el=>guideView(el.dataset.id),
+ guideEdit:el=>guideEdit(el.dataset.id),
+ guideSave:el=>{const title=val('gTitle');if(!title){toast('Γράψε τίτλο');return;}const id=el.dataset.id||uid(),old=D.guides[id]||{created:Date.now()};
+   D.guides[id]=Object.assign({},old,{id,title,need:val('gNeed'),steps:$('#gSteps').value.split('\n').map(s=>s.trim()).filter(Boolean).join('\n'),note:val('gNote'),updated:today()});
+   const from=el.dataset.from&&D.repairs[el.dataset.from];if(from&&!from.guide)D.repairs[from.id]=Object.assign({},from,{guide:id});
+   commit();guideView(id);toast(el.dataset.id?'Αποθηκεύτηκε':'Ο οδηγός δημιουργήθηκε');},
+ guideDel:el=>{const g=D.guides[el.dataset.id];if(!g)return;const u=snapUndo();for(const r of Object.values(D.repairs))if(r.guide===g.id){D.repairs[r.id]=Object.assign({},r);delete D.repairs[r.id].guide;}
+   delete D.guides[g.id];closeSheet();commit();toast('Ο οδηγός διαγράφηκε',u);},
+ guideShare:el=>{const g=D.guides[el.dataset.id];if(!g)return;const t=[`📘 ${g.title}`,g.need?'Χρειάζεται: '+g.need:'',...stepsOf(g).map((s,i)=>`${i+1}. ${s}`),g.note||''].filter(Boolean).join('\n');if(NB)NB.share(t);else if(navigator.share)navigator.share({text:t}).catch(()=>{});},
+ stepStart:el=>stepOpen(el.dataset.id),
+ stepClose:()=>stepClose(),
+ stepPrev:()=>{if(!stp)return;stp.i--;stepDraw();},
+ stepNext:()=>{if(!stp)return;const n=stepsOf(D.guides[stp.id]||{}).length;if(stp.i>=n-1){stepClose();toast('Τέλος του οδηγού');return;}stp.i++;stepDraw();},
+ /* δεξιότητες */
+ skillNew:()=>skillEdit(null),
+ skillOpen:el=>skillView(el.dataset.id),
+ skillEdit:el=>skillEdit(el.dataset.id),
+ skillSave:el=>{const name=val('sName');if(!name){toast('Γράψε τι μαθαίνεις');return;}const id=el.dataset.id||uid(),old=D.skills[id]||{created:Date.now(),status:ui.skillSt||'learning',ms:[]};
+   D.skills[id]=Object.assign({},old,{id,name,note:val('sNote')});commit();skillView(id);},
+ skillDel:el=>{const s=D.skills[el.dataset.id];if(!s)return;const u=snapUndo();delete D.skills[s.id];closeSheet();commit();toast('Διαγράφηκε: '+s.name,u);},
+ msAdd:el=>{const id=(el&&el.dataset&&el.dataset.id)||sheet.querySelector('[data-a="msAdd"][data-id]')?.dataset.id,s=D.skills[id],t=val('msText');if(!s)return;if(!t){toast('Γράψε το ορόσημο');return;}
+   s.ms=(s.ms||[]).concat([{id:uid(),t,d:val('msDate')||today()}]);commit();skillView(id);toast('Το ορόσημο γράφτηκε');},
+ msDel:el=>{const s=D.skills[el.dataset.id];if(!s)return;const u=snapUndo();s.ms=(s.ms||[]).filter(m=>m.id!==el.dataset.m);commit();skillView(s.id);toast('Το ορόσημο διαγράφηκε',u);},
+ /* ρυθμίσεις */
+ pickFolder:()=>{NB&&NB.pickBackupFolder();},
+ autoNow:()=>autoBackup(true),
+ backup:()=>{if(NB){NB.saveBackup(bkName('zip'),backupJson());return;}
+   const o=backupObj();o.photos=localPhotos();download(bkName('json'),JSON.stringify(o),'application/json');D.settings.lastBackup=today();save();render();toast('Κατέβηκε το αντίγραφο ασφαλείας');},
+ backupDrive:()=>{NB&&NB.shareBackup(bkName('zip'),backupJson());},
+ restoreNative:()=>{NB&&NB.openFile();},
+ undoSafety:()=>{const sf=safetyInfo();if(!sf)return;if(!confirm(`Επιστροφή στα δεδομένα πριν από την ${sf.why==='wipe'?'διαγραφή':'επαναφορά'} της ${dFmt(sf.day)};`))return;
+   const u=snapUndo();D=migrate(Object.assign(DEF(),sf.data));try{localStorage.removeItem(SAFE);}catch(e){}save();applyTheme();render();toast('Τα δεδομένα επανήλθαν',u);},
+ wipe:()=>{if(!confirm('Διαγραφή ΟΛΩΝ των δεδομένων; Κρατιέται αντίγραφο για αναίρεση από εδώ.'))return;const u=snapUndo();keepSafety('wipe');
+   D=Object.assign(DEF(),{settings:D.settings});commit();toast('Όλα διαγράφηκαν',u);},
 };
-document.addEventListener('click',e=>{
-  const a=e.target.closest('[data-a]');if(!a)return;
-  if(!B){msg('Χρειάζεται την εφαρμογή Android.');return;}
-  if(a.dataset.a==='cam')B.takePhoto();else B.pickPhotos();
-});
-if(B)document.getElementById('ver').textContent='Έκδοση '+B.appVersion();
+/* πεδία (data-in, με κάθε πληκτρολόγηση) */
+const I={
+ q:el=>{searchQ=el.value;const r=$('#res');if(r)r.innerHTML=searchHtml();},
+ rLine:el=>{if(!draft)return;const l=draft.parts[+el.dataset.i];if(!l)return;l[el.dataset.f]=el.value;drawTotal();},
+ rExtra:()=>drawTotal(),
+ setAuto:el=>{if(el.checked&&!NB.backupFolderName()){el.checked=false;NB.pickBackupFolder();return;}D.settings.autoBackup=el.checked;save();if(el.checked)autoBackup(true);render();},
+};
+/* επιλογές (data-ch, στην αλλαγή) */
+const C={
+ rPick:el=>{if(!draft||!el.value)return;const p=D.parts[el.value];el.value='';if(!p)return;
+   const ex=draft.parts.find(l=>l.pid===p.id);if(ex){ex.qty=amtIn((parseAmt(ex.qty)||0)+1);}else draft.parts.push({pid:p.id,name:p.name,qty:'1',price:amtIn(p.price)});drawParts();},
+ restore:el=>{const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>restoreFromText(r.result);r.readAsText(f);},
+};
+
+/* ============ Android ============ */
+window.__back=()=>{if($('#pv').classList.contains('on')){closePhoto();return true;}if(stp){stepClose();return true;}if(sheet.open){closeSheet();return true;}
+  if(ui.tab==='search'||ui.tab==='settings'){ui.tab=prevTab||'repairs';render();window.scrollTo({top:0});return true;}return false;};
+window.__resume=()=>{checkShared();setTimeout(()=>autoBackup(false),1500);};
+
+/* ============ σύνδεση ============ */
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.id==='pv'&&e.target!==el&&e.target.tagName!=='BUTTON')return;const f=A[el.dataset.a];if(f){e.preventDefault();f(el,e);}});
+document.addEventListener('input',e=>{const el=e.target;if(el.dataset&&el.dataset.in&&I[el.dataset.in])I[el.dataset.in](el,e);});
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.ch&&C[el.dataset.ch])C[el.dataset.ch](el,e);});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.enter){e.preventDefault();A[e.target.dataset.enter]();}});
+$('#fileCam').addEventListener('change',e=>browserPhotos([...e.target.files]));
+$('#fileGal').addEventListener('change',e=>browserPhotos([...e.target.files]));
+function setNavH(){const n=document.querySelector('nav.bottom');if(n)document.documentElement.style.setProperty('--navh',n.getBoundingClientRect().height+'px');}
+setNavH();window.addEventListener('resize',setNavH);
+window.addEventListener('scroll',()=>{document.querySelector('header.top').classList.toggle('sc',window.scrollY>4);},{passive:true});
+if(NB&&!lastRec.size)lastRec=toRecords(D);
+save();applyTheme();render();
+if(NB){setTimeout(()=>autoBackup(false),2500);setTimeout(prunePhotos,4000);}
 </script>
 </body>
 </html>
