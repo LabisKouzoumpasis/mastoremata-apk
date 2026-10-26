@@ -21,6 +21,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Επιλεγμένο κείμενο από τον browser → Κοινοποίηση → Μαστορέματα: γίνεται οδηγός (index.html, __onShared). -->
+            <intent-filter android:label="Μαστορέματα">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <provider

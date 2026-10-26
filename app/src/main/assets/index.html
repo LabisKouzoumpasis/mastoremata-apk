@@ -114,6 +114,12 @@ ol.steps li{margin-bottom:6px}
 .stl.warn i{background:var(--warn)}
 .stl.bad i{background:var(--bad)}
 .res h2{margin-top:16px}
+.box{border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:.94rem}
+.box.warn{background:var(--warn-bg)}
+.box.warn b{color:var(--warn)}
+.box.soft{background:var(--soft)}
+.tip{display:block;font-size:.88rem;color:var(--muted);margin-top:2px}
+.step .stip{margin-top:18px;font-size:1.05rem;line-height:1.45;background:var(--soft);border-radius:12px;padding:10px 12px}
 
 /* nav */
 nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);padding-bottom:max(env(safe-area-inset-bottom,0px),6px)}
@@ -171,7 +177,7 @@ dialog.sheet > .actions:last-child{position:sticky;bottom:calc(-18px - env(safe-
 
 <div class="step" id="step">
   <div class="stop"><b id="stTitle"></b><button class="btn ghost sm" type="button" data-a="stepClose">Κλείσιμο</button></div>
-  <div class="sbody"><div class="muted" id="stNum" style="font-weight:600;margin-bottom:8px"></div><div class="stext" id="stText"></div></div>
+  <div class="sbody"><div class="muted" id="stNum" style="font-weight:600;margin-bottom:8px"></div><div class="stext" id="stText"></div><div class="stip" id="stTip" hidden></div></div>
   <div class="snav"><button class="btn ghost" type="button" data-a="stepPrev" id="stPrev">Πίσω</button><button class="btn" type="button" data-a="stepNext" id="stNext">Επόμενο</button></div>
 </div>
 <div class="pv" id="pv" data-a="pvClose"><img id="pvImg" alt=""><button class="btn ghost sm" type="button" data-a="pvClose">Κλείσιμο</button></div>
@@ -209,20 +215,20 @@ const amtIn=n=>n==null||n===''?'':String(n).replace('.',',');
 /* ============ αποθήκευση ============ */
 const KEY='mastoremata.v1';
 const NB=window.AndroidBridge||null;
-const DEF=()=>({v:1,tools:{},repairs:{},guides:{},skills:{},parts:{},
+const DEF=()=>({v:1,tools:{},repairs:{},guides:{},skills:{},parts:{},done:{},hiddenLib:{},
   settings:{theme:'auto',autoBackup:false,lastBackup:null,lastAutoBackup:null,lastOffsite:null}});
 /* kind στη βάση → πεδίο του D */
-const KINDS={tool:'tools',repair:'repairs',guide:'guides',skill:'skills',part:'parts'};
+const KINDS={tool:'tools',repair:'repairs',guide:'guides',skill:'skills',part:'parts',done:'done'};
 function fromRecords(rec){const d=DEF();
   for(const [kind,map] of Object.entries(rec||{}))for(const [id,v] of Object.entries(map||{})){if(KINDS[kind])d[KINDS[kind]][id]=v;else if(kind==='kv')d[id]=v;}
   return d;}
 function toRecords(d){const m=new Map(),put=(k,id,v,day)=>m.set(k+'\u0001'+id,{kind:k,id:String(id),day:day||null,data:JSON.stringify(v)});
-  for(const [k,f] of Object.entries(KINDS))for(const [id,v] of Object.entries(d[f]||{}))put(k,id,v,k==='repair'?v.d:null);
-  for(const k of ['settings','v'])put('kv',k,d[k]);return m;}
+  for(const [k,f] of Object.entries(KINDS))for(const [id,v] of Object.entries(d[f]||{}))put(k,id,v,k==='repair'||k==='done'?v.d:null);
+  for(const k of ['settings','hiddenLib','v'])put('kv',k,d[k]);return m;}
 let lastRec=new Map(),loadOk=false;
 function loadData(){if(NB){try{const d=fromRecords(JSON.parse(NB.loadAll()||'{}'));lastRec=toRecords(d);loadOk=true;return d;}catch(e){return DEF();}}
   try{const raw=JSON.parse(localStorage.getItem(KEY)||'null');loadOk=true;return Object.assign(DEF(),raw||{});}catch(e){return DEF();}}
-function migrate(d){d.settings=Object.assign(DEF().settings,d.settings||{});for(const f of Object.values(KINDS))if(!d[f]||typeof d[f]!=='object')d[f]={};
+function migrate(d){d.settings=Object.assign(DEF().settings,d.settings||{});for(const f of Object.values(KINDS).concat(['hiddenLib']))if(!d[f]||typeof d[f]!=='object')d[f]={};
   for(const r of Object.values(d.repairs)){if(!Array.isArray(r.parts))r.parts=[];if(!Array.isArray(r.photos))r.photos=[];}
   for(const s of Object.values(d.skills))if(!Array.isArray(s.ms))s.ms=[];return d;}
 let D=migrate(loadData());
@@ -345,7 +351,7 @@ function vRepairs(){const all=Object.values(D.repairs),f=ui.repSt;
   return h+L.map(repairItem).join('');}
 const repairItem=r=>{const c=repCost(r),n=(r.photos||[]).length;return `<button class="item" type="button" data-a="repairOpen" data-id="${r.id}">${n?imgTag(r.photos[0],'thumb'):''}<span class="grow"><b>${esc(r.title)}</b><span class="sub">${r.status==='open'?'<span class="tag warn">Σε εξέλιξη</span> ':''}${dFmt(r.d)}${c?' · '+eur(c):''}${n>1?` · 📷 ${n}`:''}</span></span></button>`;};
 const segBtnsUi=(k,opts,cur)=>`<div class="seg">${opts.map(([v,l])=>`<button type="button" data-a="uiSeg" data-k="${k}" data-v="${v}" aria-pressed="${v===cur}">${l}</button>`).join('')}</div>`;
-function repairView(id){const r=D.repairs[id];if(!r)return;const c=repCost(r),g=r.guide&&D.guides[r.guide];
+function repairView(id){const r=D.repairs[id];if(!r)return;const c=repCost(r),g=guideOf(r.guide);
   openSheet(`<h3>${esc(r.title)}</h3>
   <p class="muted" style="margin:-6px 0 10px">${dFmt(r.d)}${r.status==='open'?' · <span class="tag warn">Σε εξέλιξη</span>':''}</p>
   ${r.how?`<div class="pre" style="margin-bottom:12px">${esc(r.how)}</div>`:''}
@@ -356,10 +362,10 @@ function repairView(id){const r=D.repairs[id];if(!r)return;const c=repCost(r),g=
   <div class="actions"><button class="btn grow" type="button" data-a="repairEdit" data-id="${id}">Επεξεργασία</button>${r.status==='open'?`<button class="btn ghost" type="button" data-a="repairDone" data-id="${id}">Έγινε</button>`:''}<button class="btn ghost" type="button" data-a="repairShare" data-id="${id}">Κοινοποίηση</button>${!g&&r.how?`<button class="btn ghost" type="button" data-a="guideFromRepair" data-id="${id}">Κάν’ τον οδηγό</button>`:''}</div>`);}
 /* Η επισκευή που επεξεργάζεσαι (αντίγραφο): εκεί μπαίνουν οι φωτογραφίες και οι γραμμές ανταλλακτικών μέχρι την «Αποθήκευση». */
 let draft=null;
-function repairEdit(id,photos){const r=id?D.repairs[id]:null;if(id&&!r)return;
-  const d=r?JSON.parse(JSON.stringify(r)):{id:null,title:'',d:today(),how:'',status:'done',parts:[],extra:null,photos:[],guide:''};
+function repairEdit(id,photos,pre){const r=id?D.repairs[id]:null;if(id&&!r)return;
+  const d=r?JSON.parse(JSON.stringify(r)):Object.assign({id:null,title:'',d:today(),how:'',status:'done',parts:[],extra:null,photos:[],guide:''},pre||{});
   d.parts=d.parts.map(l=>Object.assign({},l,{qty:amtIn(l.qty),price:amtIn(l.price)}));if(photos)d.photos.push(...photos);
-  const stock=Object.values(D.parts).sort(byName),guides=Object.values(D.guides).sort(byName);
+  const stock=Object.values(D.parts).sort(byName),guides=allGuides().sort(byName);if(d.guide&&!guides.some(g=>g.id===d.guide)&&guideOf(d.guide))guides.push(guideOf(d.guide));
   openSheet(`<h3>${r?'Επεξεργασία':'Νέα επισκευή'}</h3>
   <label class="f"><span>Τι επισκεύασα</span><input type="text" id="rTitle" value="${esc(d.title)}" placeholder="π.χ. Στάζει η μπαταρία της κουζίνας"></label>
   <div class="g2"><label class="f"><span>Πότε</span><input type="date" id="rDate" value="${esc(d.d||today())}"></label><div class="f"><span>Κατάσταση</span>${segBtns('st',[['done','Έγινε'],['open','Σε εξέλιξη']],d.status||'done')}</div></div>
@@ -384,55 +390,373 @@ function repairText(r){const L=[`🔧 ${r.title} (${dFmt(r.d)})`];if(r.how)L.pus
   const c=repCost(r);if(c)L.push('Κόστος: '+eur(c));return L.join('\n');}
 
 /* ============ ΟΔΗΓΟΙ ============ */
-const stepsOf=g=>String(g.steps||'').split('\n').map(s=>s.trim()).filter(Boolean);
+const GCAT={plumb:['🚰','Υδραυλικά'],elec:['⚡','Ηλεκτρολογικά'],wood:['🪚','Ξυλουργικά & έπιπλα'],wall:['🧱','Τοίχοι & βάψιμο'],seal:['🛁','Σιλικόνες & μονώσεις'],
+  appl:['🔌','Συσκευές'],ride:['🚲','Αυτοκίνητο & ποδήλατο'],tools:['🧰','Φροντίδα εργαλείων'],other:['📌','Άλλα']};
+const LEVEL=['','Εύκολο','Μέτριο','Δύσκολο'];
+const lvlTag=l=>l?`<span class="tag ${l>=3?'bad':l===2?'warn':'ok'}">${'●'.repeat(l)}${'○'.repeat(3-l)} ${LEVEL[l]}</span>`:'';
+const catOf=g=>GCAT[(g&&g.cat)||'other']||GCAT.other;
+/* Έτοιμοι οδηγοί (ids `b-…`): ΓΡΑΜΜΕΝΟΙ ΓΙΑ ΤΗΝ ΕΦΑΡΜΟΓΗ, γενικές και συντηρητικές οδηγίες. Μην αντιγράφεις κείμενα από
+   sites εδώ· ο χρήστης φέρνει όποιον οδηγό θέλει με «Επικόλληση» ή κοινοποίηση. Γραμμή βήματος που αρχίζει με «>» =
+   συμβουλή/«γιατί» για το από πάνω βήμα. level: 1 εύκολο, 2 μέτριο, 3 δύσκολο. */
+const LIB=[
+ {id:'b-aerator',cat:'plumb',level:1,time:'15′ + 1 ώρα μούλιασμα',title:'Καθάρισμα φίλτρου βρύσης από τα άλατα',
+  learn:'Γιατί πέφτει η πίεση από τα άλατα και πώς τα διαλύει το ξίδι. Πρώτη επαφή με σπειρώματα και φλαντζίτσες.',
+  need:'Πανί, πένσα (ή το κλειδάκι του αεριστήρα), ξίδι, μπολάκι, παλιά οδοντόβουρτσα',
+  steps:['Κλείνω την τάπα του νεροχύτη','> Για να μην πέσει κομματάκι στην αποχέτευση.',
+   'Ξεβιδώνω τον αεριστήρα από το στόμιο με το χέρι ή με πένσα τυλιγμένη σε πανί','> Το πανί προστατεύει το χρώμιο από γρατζουνιές.',
+   'Βάζω τα κομμάτια με τη σειρά πάνω στο πανί','> Βγάλε μια φωτογραφία: θα θυμάσαι πώς ξαναμπαίνουν.',
+   'Τα μουλιάζω σε ξίδι για μία ώρα και τα τρίβω με την οδοντόβουρτσα',
+   'Ξεπλένω, τα ξαναβάζω με την ίδια σειρά και βιδώνω με το χέρι'],
+  mistakes:'Χαμένη φλαντζίτσα· στραβό βίδωμα που στάζει· πολύ σφίξιμο με πένσα.'},
+ {id:'b-shower-hose',cat:'plumb',level:1,time:'15′',title:'Αλλαγή σπιράλ ντους',
+  learn:'Τα βασικά των σπειρωμάτων (συνήθως 1/2") και ότι τη στεγάνωση την κάνει η φλάντζα, όχι η δύναμη.',
+  need:'Καινούργιο σπιράλ (πάρε το παλιό μαζί στο κατάστημα), οι φλαντζίτσες του',
+  steps:['Κλείνω τη μπαταρία και ξεβιδώνω με το χέρι το σπιράλ από τη μπαταρία και από το τηλέφωνο',
+   'Ελέγχω ότι οι παλιές φλαντζίτσες δεν έμειναν μέσα στα σπειρώματα','> Μια ξεχασμένη παλιά φλάντζα κάνει διπλή φλάντζα και στάζει.',
+   'Βάζω τις καινούργιες φλαντζίτσες στις άκρες του καινούργιου σπιράλ',
+   'Βιδώνω με το χέρι, σφιχτά, χωρίς εργαλεία','> Τα πλαστικά παξιμάδια σπάνε με την πένσα.',
+   'Ανοίγω το νερό και ελέγχω για στάξιμο'],
+  mistakes:'Διπλή φλάντζα· σφίξιμο με πένσα που σπάει το πλαστικό.'},
+ {id:'b-siphon',cat:'plumb',level:1,time:'20′',title:'Καθάρισμα σιφωνιού νεροχύτη',
+  learn:'Γιατί το σιφώνι κρατά λίγο νερό (κόβει τις μυρωδιές της αποχέτευσης) και πού μαζεύονται οι βρομιές.',
+  need:'Κουβάς, γάντια, παλιό πανί, παλιά οδοντόβουρτσα ή βουρτσάκι',
+  safety:'Αν έχεις ήδη ρίξει καυστικό ξεβουλωτικό, φόρα γάντια και γυαλιά πριν ανοίξεις το σιφώνι.',
+  steps:['Βάζω κουβά και πανί κάτω από το σιφώνι',
+   'Ξεβιδώνω με το χέρι τα παξιμάδια (ρακόρ) του σιφωνιού','> Τα πλαστικά σιφώνια ανοίγουν με το χέρι· τα εργαλεία τα σπάνε.',
+   'Αδειάζω και καθαρίζω το σιφώνι και τα κοντινά σωληνάκια με τη βούρτσα',
+   'Ελέγχω ότι οι φλαντζίτσες είναι στη θέση τους και ακέραιες',
+   'Ξαναβιδώνω με το χέρι, σφιχτά',
+   'Τρέχω ζεστό νερό για ένα λεπτό και ελέγχω για διαρροή','> Αν στάζει, σφίγγω λίγο ακόμα ή ξαναβάζω σωστά τη φλάντζα.'],
+  mistakes:'Ξεχασμένος κουβάς· χαμένη ή στραβή φλαντζίτσα· υπερβολικό σφίξιμο.',
+  pro:'Αν το βούλωμα είναι πιο μέσα στον τοίχο ή βουλώνουν μαζί πολλά σιφώνια του σπιτιού.'},
+ {id:'b-toilet',cat:'plumb',level:1,time:'15′',title:'Ξεβούλωμα λεκάνης με βεντούζα',
+  learn:'Η βεντούζα σπρώχνει και τραβάει νερό, όχι αέρα· γι’ αυτό πρέπει να είναι μέσα στο νερό.',
+  need:'Βεντούζα λεκάνης (με «φούστα»), γάντια, παλιές εφημερίδες ή πανιά',
+  safety:'Μην τραβάς ξανά το καζανάκι όσο η λεκάνη είναι γεμάτη: θα ξεχειλίσει. Μην ανακατεύεις χημικά ξεβουλωτικά μεταξύ τους.',
+  steps:['Στρώνω εφημερίδες γύρω από τη λεκάνη',
+   'Αν το νερό είναι λίγο, προσθέτω ώστε να σκεπάζει τη βεντούζα',
+   'Βάζω τη βεντούζα να σφραγίσει καλά το άνοιγμα',
+   'Σπρώχνω απαλά την πρώτη φορά και μετά δυνατά πάνω-κάτω 15–20 φορές, χωρίς να χαλάσει η σφράγιση','> Το πρώτο απαλό σπρώξιμο βγάζει τον αέρα· αλλιώς πιτσιλάει.',
+   'Τραβάω απότομα· αν το νερό κατεβαίνει, ξεβούλωσε',
+   'Ρίχνω έναν κουβά νερό ή τραβάω το καζανάκι για επιβεβαίωση'],
+  mistakes:'Βεντούζα νεροχύτη αντί για λεκάνης· δυνατό πρώτο σπρώξιμο.',
+  pro:'Αν δεν ξεβουλώνει μετά από 3–4 προσπάθειες ή βουλώνουν και άλλα σιφώνια μαζί.'},
+ {id:'b-tap-washer',cat:'plumb',level:2,time:'30′',title:'Βρύση που στάζει: αλλαγή φλάντζας (βρύση με λαβές)',
+  learn:'Πώς δουλεύει μια βρύση με φλάντζα· κλείσιμο του νερού στο σημείο· να ξεχωρίζεις βρύση με λαβές από μπαταρία με έναν μοχλό (φυσίγγιο).',
+  need:'Γαλλικό κλειδί, κατσαβίδια, καινούργια φλάντζα ίδιας διάστασης (πάρε την παλιά στο κατάστημα), πανί, λίγο γράσο σιλικόνης',
+  safety:'Κλείσε τον διακόπτη νερού κάτω από τον νεροχύτη ή τον γενικό. Βάλε την τάπα στην αποχέτευση για να μη χαθούν βίδες.',
+  steps:['Κλείνω τον διακόπτη νερού (γωνιακό κάτω από τον νεροχύτη ή τον γενικό)','> Ανοίγω τη βρύση: αδειάζει το νερό που έμεινε και βλέπω ότι πράγματι έκλεισε.',
+   'Βγάζω το καπάκι της λαβής και ξεβιδώνω τη βίδα της','> Το χρωματιστό καπάκι συνήθως βγαίνει με ένα λεπτό κατσαβίδι.',
+   'Βγάζω τη λαβή και ξεβιδώνω τον μηχανισμό (κεφάλι) με το γαλλικό κλειδί','> Τυλίγω το κλειδί με πανί για να μη γδάρω το χρώμιο.',
+   'Αφαιρώ την παλιά φλάντζα από τη βάση του μηχανισμού',
+   'Βάζω την καινούργια, ίδια διάσταση','> Λίγο γράσο σιλικόνης στο σπείρωμα κάνει πιο εύκολη την επόμενη φορά.',
+   'Ξαναβιδώνω τον μηχανισμό σφιχτά αλλά όχι με όλη μου τη δύναμη· βάζω λαβή και καπάκι',
+   'Ανοίγω αργά τον διακόπτη και ελέγχω για στάξιμο'],
+  mistakes:'Δουλειά χωρίς να κλείσει το νερό· υπερβολικό σφίξιμο που χαλάει το σπείρωμα· λάθος μέγεθος φλάντζας.',
+  pro:'Αν στάζει από τη βάση της βρύσης, αν ο διακόπτης δεν κλείνει τελείως ή αν οι σωλήνες είναι σκουριασμένοι.'},
+ {id:'b-cistern',cat:'plumb',level:2,time:'30′',title:'Καζανάκι που τρέχει συνέχεια',
+  learn:'Πώς γεμίζει και αδειάζει ένα καζανάκι: φλοτέρ (βάνα πλήρωσης) και βαλβίδα εκκένωσης. Διάγνωση πριν από την αλλαγή εξαρτημάτων.',
+  need:'Πανί, σφουγγάρι, ίσως καινούργιο λάστιχο βαλβίδας ή φλοτέρ (με φωτογραφία του μηχανισμού για το κατάστημα)',
+  safety:'Κλείσε τον γωνιακό διακόπτη πριν βγάλεις εξαρτήματα.',
+  steps:['Ανοίγω το καπάκι (σε εντοιχισμένο, βγάζω την πλάκα με τα κουμπιά) και φωτογραφίζω τον μηχανισμό','> Η φωτογραφία βοηθάει να ξαναμπούν όλα σωστά και να βρεις ανταλλακτικό.',
+   'Βλέπω πού πάει το νερό: αν ξεχειλίζει στον σωλήνα υπερχείλισης, φταίει το φλοτέρ· αν φεύγει στη λεκάνη χωρίς να ξεχειλίζει, φταίει η βαλβίδα εκκένωσης','> Αυτή η διάγνωση είναι το πιο σημαντικό βήμα.',
+   'Για το φλοτέρ: ρυθμίζω τη στάθμη πιο χαμηλά (βίδα ή κλιπ ρύθμισης), ώστε το νερό να σταματά λίγα εκατοστά κάτω από την υπερχείλιση',
+   'Για τη βαλβίδα: κλείνω το νερό, αδειάζω το καζανάκι, βγάζω τη βαλβίδα και καθαρίζω το λάστιχό της από τα άλατα',
+   'Αν το λάστιχο είναι σκληρό ή φαγωμένο, το αλλάζω με ίδιο',
+   'Ανοίγω το νερό, περιμένω να γεμίσει και ελέγχω ότι σταματάει'],
+  mistakes:'Αλλαγή εξαρτημάτων χωρίς διάγνωση· λάθος ανταλλακτικό (κάθε μάρκα έχει δικά της).',
+  pro:'Εντοιχισμένο καζανάκι που δεν ανοίγει εύκολα ή διαρροή από σωλήνες μέσα στον τοίχο.'},
+ {id:'b-rcd',cat:'elec',level:1,time:'20′',title:'Πέφτει ο ρελέ διαρροής: ποια συσκευή φταίει',
+  learn:'Τι κάνει ο αντιηλεκτροπληξιακός διακόπτης (ρελέ διαρροής) και πώς βρίσκεις μια βλάβη με αποκλεισμό, ένα-ένα.',
+  need:'Φακός, χαρτί για σημειώσεις',
+  safety:'Μην αγγίζεις συσκευή που έχει βραχεί ή μυρίζει καμένο. Ποτέ μην παρακάμπτεις τον ρελέ για να μην πέφτει: σε προστατεύει από ηλεκτροπληξία.',
+  steps:['Βγάζω από την πρίζα όλες τις συσκευές που βγαίνουν',
+   'Ανεβάζω τον ρελέ διαρροής','> Αν δεν ανεβαίνει ούτε χωρίς συσκευές, το πρόβλημα είναι στην εγκατάσταση: ηλεκτρολόγος.',
+   'Κατεβάζω όλες τις επιμέρους ασφάλειες και τις ανεβάζω μία-μία','> Όποια ρίχνει τον ρελέ δείχνει το κύκλωμα με το πρόβλημα.',
+   'Ξαναβάζω τις συσκευές μία-μία και περιμένω λίγο μετά από κάθε μία',
+   'Σημειώνω ποια συσκευή ή ποιο κύκλωμα ρίχνει τον ρελέ',
+   'Πατάω το κουμπί «T» (Test) του ρελέ για να δω ότι πέφτει','> Καλό είναι να το κάνεις κάθε λίγους μήνες.'],
+  mistakes:'Να ανεβάζεις συνέχεια τον ρελέ χωρίς να βρεις την αιτία· να ξεχνάς συσκευές με μόνιμη σύνδεση (θερμοσίφωνας, κουζίνα).',
+  pro:'Όταν φταίει κύκλωμα και όχι συσκευή, όταν πέφτει με βροχή ή υγρασία, ή όταν το «Test» δεν τον ρίχνει.'},
+ {id:'b-ceiling-light',cat:'elec',level:2,time:'45′',title:'Αλλαγή φωτιστικού οροφής',
+  learn:'Απομόνωση κυκλώματος, έλεγχος ότι δεν υπάρχει τάση, χρώματα καλωδίων (καφέ/μαύρο φάση, μπλε ουδέτερος, πράσινο-κίτρινο γείωση) και στήριξη βάρους στο ταβάνι.',
+  need:'Σταθερή σκάλα, ανιχνευτή τάσης, κατσαβίδια με μόνωση, κλέμες ή συνδέσμους, κάποιον να βοηθάει',
+  safety:'Κατέβασε την ασφάλεια του κυκλώματος στον πίνακα, όχι μόνο τον διακόπτη του τοίχου. Έλεγξε με ανιχνευτή ότι δεν υπάρχει τάση πριν αγγίξεις καλώδιο. Σταθερή σκάλα και βοηθός. Αν δεν είσαι σίγουρος, σταμάτα.',
+  steps:['Κατεβάζω την ασφάλεια και βεβαιώνομαι ότι το φως δεν ανάβει','> Δοκίμασε πρώτα τον ανιχνευτή σε πρίζα που δουλεύει: έτσι ξέρεις ότι λειτουργεί.',
+   'Ξεβιδώνω το παλιό φωτιστικό κρατώντας το βάρος του και ελέγχω με τον ανιχνευτή κάθε καλώδιο',
+   'Φωτογραφίζω τις συνδέσεις και λύνω την κλέμα',
+   'Συνδέω το καινούργιο: φάση με φάση, ουδέτερο (μπλε) με ουδέτερο, γείωση (πράσινο-κίτρινο) στη γείωση του φωτιστικού','> Σε μεταλλικό φωτιστικό η γείωση είναι απαραίτητη.',
+   'Τραβάω ελαφρά κάθε καλώδιο να δω ότι κρατάει',
+   'Στερεώνω το φωτιστικό με το στήριγμά του, όχι κρεμασμένο από τα καλώδια',
+   'Ανεβάζω την ασφάλεια και δοκιμάζω'],
+  mistakes:'Δουλειά μόνο με τον διακόπτη του τοίχου κλειστό· φωτιστικό κρεμασμένο από τα καλώδια· χαλαρές κλέμες· χωρίς γείωση.',
+  pro:'Βαρύ φωτιστικό ή ανεμιστήρας οροφής, ταβάνι γυψοσανίδας χωρίς στήριγμα, παλιά καλώδια που θρυμματίζονται ή μαυρισμένα σημεία.'},
+ {id:'b-socket',cat:'elec',level:3,time:'45′',title:'Αλλαγή πρίζας ή διακόπτη',
+  learn:'Ασφαλής δουλειά σε κύκλωμα: απομόνωση, έλεγχος τάσης, φάση–ουδέτερος–γείωση, σωστό σφίξιμο ακροδεκτών.',
+  need:'Ανιχνευτή τάσης, κατσαβίδια με μόνωση, καινούργια πρίζα ή διακόπτη ίδιου τύπου',
+  safety:'Κατέβασε την ασφάλεια του κυκλώματος και άφησε σημείωμα στον πίνακα. Έλεγξε με ανιχνευτή ότι δεν υπάρχει τάση σε ΚΑΘΕ καλώδιο πριν το αγγίξεις. Αν κάτι δεν μοιάζει με αυτά που περιγράφονται εδώ, σταμάτα.',
+  steps:['Κατεβάζω την ασφάλεια του κυκλώματος και αφήνω σημείωμα στον πίνακα','> Το σημείωμα εμποδίζει κάποιον άλλον να την ανεβάσει όσο δουλεύεις.',
+   'Ξεβιδώνω την πρόσοψη και ελέγχω με τον ανιχνευτή ότι δεν υπάρχει τάση',
+   'Φωτογραφίζω πού πάει κάθε καλώδιο πριν λύσω οτιδήποτε',
+   'Λύνω τα καλώδια από την παλιά πρίζα ή τον διακόπτη',
+   'Συνδέω στην καινούργια στις ίδιες ακριβώς θέσεις· πράσινο-κίτρινο πάντα στη γείωση','> Τα καλώδια μπαίνουν σφιχτά, χωρίς γυμνό χαλκό έξω από τον ακροδέκτη: μια χαλαρή βίδα ζεσταίνεται.',
+   'Τραβάω ελαφρά κάθε καλώδιο να δω ότι κρατάει, στερεώνω στο κουτί και βάζω την πρόσοψη',
+   'Ανεβάζω την ασφάλεια και δοκιμάζω'],
+  mistakes:'Δουλειά με κλειστό μόνο τον διακόπτη του φωτός· μπέρδεμα καλωδίων χωρίς φωτογραφία· χαλαρή βίδα.',
+  pro:'Αν δεν υπάρχει γείωση, αν δεις καμένα ή μαυρισμένα σημεία, αν η ασφάλεια ξαναπέφτει. Σε κάθε αμφιβολία: ηλεκτρολόγος.'},
+ {id:'b-squeak',cat:'wood',level:1,time:'10′',title:'Πόρτα που τρίζει',
+  learn:'Η τριβή μετάλλου σε μέταλλο θέλει λίπανση που μένει (γράσο), όχι μόνο σπρέι.',
+  need:'Σφυράκι, καρφί ή λεπτό κατσαβίδι, γράσο ή λάδι μηχανής, πανί',
+  steps:['Ανοιγοκλείνω αργά και βρίσκω ποιος μεντεσές τρίζει',
+   'Κλείνω την πόρτα και σπρώχνω τον πείρο του μεντεσέ προς τα πάνω με καρφί και σφυράκι, μέχρι να βγει μισός','> Δεν χρειάζεται να βγάλεις την πόρτα: δούλευε έναν μεντεσέ τη φορά.',
+   'Καθαρίζω τον πείρο με το πανί και βάζω λίγο γράσο',
+   'Τον ξαναβάζω και ανοιγοκλείνω μερικές φορές',
+   'Σκουπίζω ό,τι περίσσεψε'],
+  mistakes:'Πολύ λάδι που στάζει στο πάτωμα· σπρέι που καθαρίζει αλλά δεν λιπαίνει για πολύ.'},
+ {id:'b-hinge',cat:'wood',level:1,time:'15′',title:'Ρύθμιση πόρτας ντουλαπιού (μεντεσέδες)',
+  learn:'Τι κάνει κάθε βίδα σε έναν κρυφό μεντεσέ: πλάγια, βάθος, ύψος. Μικρές αλλαγές και έλεγχος μετά από κάθε μία.',
+  need:'Σταυροκατσάβιδο (συνήθως PZ2)',
+  steps:['Ανοίγω το ντουλάπι και βρίσκω τις βίδες του μεντεσέ',
+   'Η βίδα πιο κοντά στην πόρτα μετακινεί την πόρτα δεξιά-αριστερά','> Μισή στροφή κάθε φορά, κλείνω και κοιτάζω το αποτέλεσμα.',
+   'Η πίσω βίδα (ή έκκεντρη) ρυθμίζει πόσο κοντά στο κουτί κλείνει η πόρτα',
+   'Για το ύψος, χαλαρώνω τις βίδες της βάσης, ανεβοκατεβάζω την πόρτα και ξανασφίγγω',
+   'Ρυθμίζω τον πάνω και τον κάτω μεντεσέ με τον ίδιο τρόπο','> Αν ρυθμίσεις μόνο τον έναν, η πόρτα στραβώνει.'],
+  mistakes:'Πολλές στροφές μαζί· ρύθμιση μόνο του ενός μεντεσέ.'},
+ {id:'b-loose-screw',cat:'wood',level:1,time:'20′ + στέγνωμα',title:'Βίδα που γυρίζει «τρελή» σε ξύλο',
+  learn:'Το ξύλο κρατάει τη βίδα με τις ίνες του· όταν χαλάσουν, τις ξαναφτιάχνεις με ξύλο και κόλλα.',
+  need:'Οδοντογλυφίδες ή ξυλάκια, ξυλόκολλα, κοπίδι, κατσαβίδι',
+  steps:['Ξεβιδώνω τη βίδα που δεν πιάνει',
+   'Γεμίζω την τρύπα με οδοντογλυφίδες βουτηγμένες στην ξυλόκολλα',
+   'Κόβω ό,τι εξέχει με το κοπίδι, ίσια με την επιφάνεια',
+   'Αφήνω την κόλλα να στεγνώσει όσο λέει η συσκευασία','> Αν βιαστείς, η βίδα θα ξαναφύγει.',
+   'Ξαναβιδώνω με το χέρι, όχι με δράπανο'],
+  mistakes:'Μεγαλύτερη βίδα που σκίζει το ξύλο· βίδωμα πριν στεγνώσει η κόλλα.'},
+ {id:'b-shelf',cat:'wood',level:2,time:'45′',title:'Ράφι στον τοίχο με ούπα',
+  learn:'Να διαλέγεις τρυπάνι και ούπα ανάλογα με τον τοίχο (μπετό, τούβλο, γυψοσανίδα) και να αποφεύγεις καλώδια και σωλήνες.',
+  need:'Δράπανο (κρουστικό για μπετό), τρυπάνι ίδιας διαμέτρου με το ούπα, ούπα και βίδες για το βάρος, αλφάδι, μολύβι, μέτρο, γυαλιά, ανιχνευτή καλωδίων αν έχεις',
+  safety:'Μην τρυπάς κάθετα πάνω ή κάτω από πρίζες και διακόπτες ούτε οριζόντια δίπλα τους: εκεί περνούν συνήθως καλώδια. Πρόσεχε για σωλήνες κοντά σε μπάνιο και κουζίνα. Γυαλιά για τη σκόνη.',
+  steps:['Σημαδεύω τη θέση με αλφάδι και μολύβι',
+   'Ελέγχω ότι δεν περνούν καλώδια ή σωλήνες εκεί',
+   'Τρυπάω με τρυπάνι ίδιας διαμέτρου με το ούπα, λίγο πιο βαθιά από το μήκος του','> Τούβλο: χωρίς κρουστική λειτουργία στην αρχή, για να μη σπάσει. Μπετό: με κρουστική.',
+   'Καθαρίζω τη σκόνη από την τρύπα και βάζω το ούπα ίσια με τον τοίχο',
+   'Βιδώνω το στήριγμα και ελέγχω με το αλφάδι',
+   'Φορτώνω σιγά-σιγά και ελέγχω ότι δεν κουνιέται'],
+  mistakes:'Μεγάλο τρυπάνι (το ούπα γυρίζει)· κοινό ούπα σε γυψοσανίδα· τρύπα πάνω από πρίζα.',
+  pro:'Βαριά πράγματα (ντουλάπια κουζίνας, τηλεόραση) σε γυψοσανίδα ή όταν δεν ξέρεις από τι είναι ο τοίχος.'},
+ {id:'b-patch',cat:'wall',level:1,time:'30′ + στέγνωμα',title:'Στοκάρισμα μικρής τρύπας και βάψιμο',
+  learn:'Η σειρά γέμισμα → στέγνωμα → τρίψιμο → βάψιμο ισχύει σχεδόν σε κάθε φινίρισμα.',
+  need:'Στόκο σπατουλαρίσματος, σπάτουλα, λεπτό γυαλόχαρτο (π.χ. 180), πανί, ίδιο χρώμα τοίχου, μικρό πινέλο ή ρολό',
+  steps:['Καθαρίζω την τρύπα από τη σκόνη και τα χαλαρά κομμάτια',
+   'Γεμίζω με στόκο με τη σπάτουλα, λίγο πάνω από την επιφάνεια','> Οι μεγάλες τρύπες θέλουν δύο στρώσεις: ο στόκος «κάθεται» καθώς στεγνώνει.',
+   'Αφήνω να στεγνώσει τελείως',
+   'Τρίβω απαλά ώσπου να είναι ίσιο με τον τοίχο και σκουπίζω τη σκόνη',
+   'Βάφω λίγο, απλώνοντας προς τα έξω ώστε να μη φαίνεται το όριο'],
+  mistakes:'Βάψιμο πριν στεγνώσει· δυνατό τρίψιμο που κάνει λακκούβα· χρώμα άλλης παρτίδας με άλλη απόχρωση.'},
+ {id:'b-silicone',cat:'seal',level:2,time:'1 ώρα + 24 ώρες στέγνωμα',title:'Αλλαγή σιλικόνης σε μπανιέρα ή ντουζιέρα',
+  learn:'Η προετοιμασία της επιφάνειας μετράει περισσότερο από το ίδιο το υλικό.',
+  need:'Σιλικόνη υγιεινής (αντιμουχλική), πιστόλι σιλικόνης, κοπίδι ή ξύστρα, οινόπνευμα, χαρτοταινία, νερό με λίγο σαπούνι',
+  safety:'Προσοχή με το κοπίδι. Αερισμός όσο στεγνώνει.',
+  steps:['Κόβω και αφαιρώ όλη την παλιά σιλικόνη','> Η καινούργια δεν κολλάει πάνω σε παλιά σιλικόνη ή σε μούχλα.',
+   'Καθαρίζω με οινόπνευμα και αφήνω να στεγνώσει τελείως',
+   'Κολλάω χαρτοταινία και στις δύο πλευρές του αρμού, αφήνοντας το κενό που θέλω να γεμίσει η σιλικόνη',
+   'Γεμίζω την μπανιέρα με νερό (αν είναι ακρυλική)','> Έτσι «κάθεται» όπως στη χρήση και η σιλικόνη δεν σκίζεται μετά.',
+   'Βάζω σιλικόνη με μία σταθερή κίνηση, χωρίς διακοπές',
+   'Στρώνω με βρεγμένο δάχτυλο (νερό με σαπούνι) και βγάζω αμέσως τις ταινίες',
+   'Δεν τη βρέχω όσο λέει η συσκευασία (συνήθως 24 ώρες)'],
+  mistakes:'Σιλικόνη πάνω σε παλιά ή υγρή επιφάνεια· ταινίες που βγαίνουν αφού στεγνώσει· σιλικόνη χωρίς αντιμουχλικό.'},
+ {id:'b-ac-filter',cat:'appl',level:1,time:'30′',title:'Καθάρισμα φίλτρων κλιματιστικού',
+  learn:'Συντήρηση σημαίνει λιγότερη κατανάλωση και καθαρότερο αέρα. Στη σεζόν, περίπου μία φορά τον μήνα.',
+  need:'Χλιαρό νερό, μαλακή βούρτσα, λίγο απορρυπαντικό πιάτων, πανί',
+  safety:'Κλείσε το κλιματιστικό και αποσύνδεσέ το από το ρεύμα (πρίζα ή ασφάλεια).',
+  steps:['Κλείνω το κλιματιστικό και το αποσυνδέω από το ρεύμα',
+   'Σηκώνω το μπροστινό καπάκι της εσωτερικής μονάδας και βγάζω τα φίλτρα',
+   'Τα πλένω με χλιαρό νερό, λίγο απορρυπαντικό και τη μαλακή βούρτσα','> Όχι ζεστό νερό: τα φίλτρα παραμορφώνονται.',
+   'Τα αφήνω να στεγνώσουν τελείως στη σκιά',
+   'Τα ξαναβάζω και κλείνω το καπάκι'],
+  mistakes:'Βρεγμένα φίλτρα πίσω στη μονάδα (μούχλα)· σκληρή βούρτσα στα πτερύγια.',
+  pro:'Μυρωδιά μούχλας που δεν φεύγει, νερά που στάζουν από τη μονάδα, ετήσιο καθάρισμα και έλεγχος.'},
+ {id:'b-washer-filter',cat:'appl',level:1,time:'20′',title:'Καθάρισμα φίλτρου πλυντηρίου ρούχων',
+  learn:'Πολλά «χαλασμένα» πλυντήρια (δεν αδειάζει, βγάζει σφάλμα) έχουν απλώς βουλωμένο φίλτρο.',
+  need:'Ρηχό ταψί, πετσέτες, πανί',
+  safety:'Βγάλε το πλυντήριο από την πρίζα. Αν μόλις τελείωσε ζεστό πρόγραμμα, περίμενε να κρυώσει το νερό.',
+  steps:['Αποσυνδέω το πλυντήριο και ανοίγω το καπάκι κάτω μπροστά',
+   'Βάζω ταψί και πετσέτες· αν υπάρχει λαστιχάκι εκκένωσης, αδειάζω πρώτα από εκεί','> Βγαίνει περισσότερο νερό απ’ όσο περιμένεις.',
+   'Ξεβιδώνω αργά το φίλτρο αριστερόστροφα',
+   'Καθαρίζω χνούδια, νομίσματα και ό,τι άλλο βρω και ξεπλένω το φίλτρο',
+   'Ελέγχω ότι η φτερωτή πίσω από το φίλτρο γυρίζει ελεύθερα',
+   'Ξαναβιδώνω μέχρι τέρμα και ελέγχω για διαρροή στο επόμενο πλύσιμο'],
+  mistakes:'Άνοιγμα με ζεστό νερό μέσα· φίλτρο που δεν βιδώθηκε μέχρι τέρμα και στάζει.'},
+ {id:'b-tyre',cat:'ride',level:1,time:'15′',title:'Έλεγχος πίεσης ελαστικών αυτοκινήτου',
+  learn:'Σωστή πίεση σημαίνει ασφάλεια, λιγότερη κατανάλωση και λάστιχα που κρατάνε περισσότερο. Έλεγχος κάθε μήνα.',
+  need:'Μανόμετρο ή το κομπρεσέρ του πρατηρίου',
+  safety:'Μέτρα με κρύα λάστιχα (πριν από μεγάλη διαδρομή). Μην ξεπερνάς τη μέγιστη πίεση που γράφει το ελαστικό.',
+  steps:['Βρίσκω τη σωστή πίεση στο αυτοκόλλητο (πόρτα οδηγού ή τάπα ρεζερβουάρ) ή στο βιβλίο του αυτοκινήτου','> Συχνά διαφέρει μπροστά-πίσω και με φορτωμένο αυτοκίνητο.',
+   'Βγάζω την τάπα της βαλβίδας και μετράω',
+   'Φουσκώνω ή ξεφουσκώνω μέχρι τη σωστή τιμή',
+   'Ξαναβάζω την τάπα',
+   'Κοιτάζω και το πέλμα: ρωγμές, φουσκώματα, βάθος αυλακιών (κάτω όριο 1,6 χιλ.)','> Μην ξεχνάς τη ρεζέρβα.'],
+  mistakes:'Μέτρηση αμέσως μετά από διαδρομή· ξεχασμένη ρεζέρβα.'},
+ {id:'b-bike-tube',cat:'ride',level:2,time:'30′',title:'Μπάλωμα σαμπρέλας ποδηλάτου',
+  learn:'Μεθοδική αναζήτηση της αιτίας: η τρύπα έχει πάντα κάποιον λόγο (αγκάθι, γυαλί, τσίμπημα).',
+  need:'Κιτ μπαλώματος (μπαλώματα, κόλλα, γυαλόχαρτο), λεβιέδες ελαστικών, τρόμπα, λεκάνη με νερό',
+  steps:['Βγάζω τον τροχό και ξεφουσκώνω τελείως',
+   'Με τους λεβιέδες βγάζω τη μία πλευρά του ελαστικού και τραβάω έξω τη σαμπρέλα',
+   'Φουσκώνω λίγο, βρίσκω την τρύπα (ακούω ή βάζω στο νερό για φυσαλίδες) και τη σημαδεύω',
+   'Τρίβω με γυαλόχαρτο γύρω από την τρύπα, βάζω λεπτή στρώση κόλλας και περιμένω να θαμπώσει','> Το συχνότερο λάθος: μπάλωμα πάνω σε υγρή κόλλα.',
+   'Πιέζω δυνατά το μπάλωμα για ένα λεπτό',
+   'Ψάχνω προσεκτικά με το δάχτυλο μέσα στο ελαστικό για αγκάθι ή γυαλί',
+   'Ξαναβάζω σαμπρέλα και ελαστικό χωρίς να τη «τσιμπήσω» με τους λεβιέδες και φουσκώνω στην πίεση που γράφει το ελαστικό'],
+  mistakes:'Μπάλωμα σε υγρή κόλλα· αγκάθι που έμεινε και ξανατρυπάει· τσίμπημα με τον λεβιέ.'},
+ {id:'b-tool-care',cat:'tools',level:1,time:'30′',title:'Καθάρισμα και προστασία εργαλείων από τη σκουριά',
+  learn:'Η υγρασία είναι ο μεγάλος εχθρός· λίγη συντήρηση κρατάει τα εργαλεία μια ζωή.',
+  need:'Συρματόβουρτσα ή σκληρό σφουγγαράκι, πανιά, λάδι μηχανής ή αντισκωριακό σπρέι, γάντια',
+  steps:['Καθαρίζω χώματα και λάσπες και στεγνώνω καλά',
+   'Τρίβω τη σκουριά με τη συρματόβουρτσα μέχρι να φανεί καθαρό μέταλλο',
+   'Περνάω λεπτή στρώση λάδι με πανί','> Λίγο λάδι αρκεί· το πολύ μαζεύει σκόνη.',
+   'Λαδώνω τις αρθρώσεις (πένσες, ψαλίδια) και τις ανοιγοκλείνω',
+   'Τα αποθηκεύω σε ξηρό μέρος, όχι στο πάτωμα μιας υγρής αποθήκης'],
+  mistakes:'Αποθήκευση βρεγμένων εργαλείων· λάδι στις λαβές που γλιστράνε.'},
+];
+const LIBMAP=Object.fromEntries(LIB.map(g=>[g.id,Object.assign({lib:true},g,{steps:g.steps.join('\n')})]));
+const guideOf=id=>(id&&(D.guides[id]||LIBMAP[id]))||null;
+const visibleLib=()=>LIB.filter(g=>!D.hiddenLib[g.id]).map(g=>LIBMAP[g.id]);
+const allGuides=()=>Object.values(D.guides).concat(visibleLib());
+/* Βήματα: μία γραμμή = ένα βήμα· γραμμή που αρχίζει με «>» = συμβουλή («γιατί») για το από πάνω βήμα. */
+function stepsOf(g){const out=[];for(const raw of String((g&&g.steps)||'').split('\n')){const s=raw.trim();if(!s)continue;
+  if(s[0]==='>'){const t=s.slice(1).trim(),p=out[out.length-1];if(t&&p)p.tip=p.tip?p.tip+' '+t:t;continue;}out.push({t:s,tip:''});}return out;}
 const guideUsed=gid=>Object.values(D.repairs).filter(r=>r.guide===gid).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
-function vGuides(){const L=Object.values(D.guides).sort(byName);
-  let h=`<button class="btn add" type="button" data-a="guideNew">+ Νέος οδηγός</button>`;
-  if(!L.length)return h+emptyMsg('Δεν έχεις οδηγούς','Οι δικές σου σημειώσεις βήμα βήμα, π.χ. «Αλλαγή φλάντζας μπαταρίας» ή «Καθάρισμα σιφωνιού». Μπορείς να φτιάξεις οδηγό και από μια επισκευή.');
-  return h+L.map(g=>{const n=stepsOf(g).length,u=guideUsed(g.id).length;return `<button class="item" type="button" data-a="guideOpen" data-id="${g.id}"><span class="grow"><b>${esc(g.title)}</b><span class="sub">${n} ${plural(n,'βήμα','βήματα')}${u?` · σε ${u} ${plural(u,'επισκευή','επισκευές')}`:''}${g.need?' · '+esc(g.need):''}</span></span></button>`;}).join('');}
-function guideView(id){const g=D.guides[id];if(!g)return;const S=stepsOf(g),u=guideUsed(id);
+/* Κάθε φορά που ολοκληρώνεις έναν οδηγό: D.done {id,g,d,note}. */
+const doneOf=gid=>Object.values(D.done).filter(x=>x.g===gid).sort((a,b)=>(b.d||'').localeCompare(a.d||'')||(b.created||0)-(a.created||0));
+const guideItem=g=>{const n=stepsOf(g).length,dn=doneOf(g.id).length,u=guideUsed(g.id).length;
+  return `<button class="item" type="button" data-a="guideOpen" data-id="${g.id}"><span class="grow"><b>${esc(g.title)}</b><span class="sub">${g.level?lvlTag(g.level)+' ':''}${g.time?'⏱ '+esc(g.time)+' · ':''}${n} ${plural(n,'βήμα','βήματα')}${dn?` · ✓ ${dn} ${plural(dn,'φορά','φορές')}`:''}${u?` · σε ${u} ${plural(u,'επισκευή','επισκευές')}`:''}</span></span></button>`;};
+const byLevel=(a,b)=>(a.level||1)-(b.level||1)||byName(a,b);
+function vGuides(){const f=ui.gCat||'',inCat=g=>!f||(g.cat||'other')===f,own=Object.values(D.guides).filter(inCat).sort(byName),lib=visibleLib().filter(inCat);
+  const cats=Object.keys(GCAT).filter(k=>allGuides().some(g=>(g.cat||'other')===k));
+  let h=`<div class="row" style="margin:4px 0 10px"><button class="btn grow" type="button" data-a="guideNew">+ Νέος οδηγός</button><button class="btn ghost" type="button" data-a="guidePaste">📋 Επικόλληση</button></div>
+  <div class="chips"><button class="chip" type="button" data-a="gCat" data-v="" aria-pressed="${!f}">Όλοι</button>${cats.map(k=>`<button class="chip" type="button" data-a="gCat" data-v="${k}" aria-pressed="${f===k}">${GCAT[k][0]} ${GCAT[k][1]}</button>`).join('')}</div>
+  <h2>Οι οδηγοί μου</h2>${own.length?own.map(guideItem).join(''):`<p class="muted small">${f?'Κανένας δικός σου σε αυτή την κατηγορία.':'Γράψε τους δικούς σου, επικόλλησε οδηγίες από μια σελίδα ή φτιάξε οδηγό από μια επισκευή. Έναν έτοιμο τον κάνεις δικό σου με «Αντιγραφή για αλλαγές».'}</p>`}`;
+  if(lib.length){h+=`<h2>Έτοιμοι οδηγοί</h2><p class="small muted" style="margin-top:-4px">Από τον πιο εύκολο στον πιο δύσκολο. Διάβασε πρώτα την «Ασφάλεια»· όπου λέει, κάλεσε τεχνίτη.</p>`;
+    for(const k of Object.keys(GCAT)){const L=lib.filter(g=>g.cat===k).sort(byLevel);if(L.length)h+=(f?'':`<p class="small" style="margin:12px 2px 6px;font-weight:700">${GCAT[k][0]} ${GCAT[k][1]}</p>`)+L.map(guideItem).join('');}}
+  return h;}
+function guideView(id){const g=guideOf(id);if(!g)return;const S=stepsOf(g),u=guideUsed(id),dn=doneOf(id),c=catOf(g),sec=(ic,t,x)=>x?`<p><b>${ic} ${t}:</b> ${esc(x)}</p>`:'';
   openSheet(`<h3>${esc(g.title)}</h3>
-  ${g.need?`<p><b>Χρειάζεται:</b> ${esc(g.need)}</p>`:''}
-  ${S.length?`<ol class="steps">${S.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:'<p class="muted">Δεν έχει βήματα ακόμα.</p>'}
+  <p class="muted small" style="margin:-6px 0 10px">${c[0]} ${c[1]}${g.level?' · '+lvlTag(g.level):''}${g.time?' · ⏱ '+esc(g.time):''}${dn.length?` · ✓ ${dn.length} ${plural(dn.length,'φορά','φορές')}, τελευταία ${rel(dn[0].d)}`:''}</p>
+  ${g.safety?`<div class="box warn"><b>⚠️ Ασφάλεια:</b> ${esc(g.safety)}</div>`:''}
+  ${g.learn?`<div class="box soft">🎓 <b>Τι μαθαίνεις:</b> ${esc(g.learn)}</div>`:''}
+  ${sec('🧰','Χρειάζεται',g.need)}
+  ${S.length?`<b>Βήματα</b><ol class="steps">${S.map(s=>`<li>${esc(s.t)}${s.tip?`<span class="tip">💡 ${esc(s.tip)}</span>`:''}</li>`).join('')}</ol>`:'<p class="muted">Δεν έχει βήματα ακόμα.</p>'}
+  ${sec('❌','Συνήθη λάθη',g.mistakes)}${sec('📞','Πότε καλείς τεχνίτη',g.pro)}
   ${g.note?`<div class="pre muted" style="margin-bottom:10px">${esc(g.note)}</div>`:''}
+  ${g.src?`<p class="small">Πηγή: ${/^https?:\/\//.test(g.src)?`<a href="${esc(g.src)}" target="_blank" rel="noopener">${esc(g.src.replace(/^https?:\/\/(www\.)?/,'').slice(0,60))}</a>`:esc(g.src)}</p>`:''}
+  ${dn.some(x=>x.note)?`<b>Τι έμαθα κάθε φορά</b><div style="margin:4px 0 10px">${dn.filter(x=>x.note).map(x=>`<div class="ms"><span class="d">${dFmt(x.d)}</span><span class="grow pre">${esc(x.note)}</span></div>`).join('')}</div>`:''}
   ${u.length?`<p class="small"><b>Χρησιμοποιήθηκε:</b> ${u.map(r=>`<button class="link" type="button" data-a="repairOpen" data-id="${r.id}">${esc(r.title)}</button> <span class="muted">${dFmt(r.d)}</span>`).join(' · ')}</p>`:''}
-  <div class="actions">${S.length?`<button class="btn grow" type="button" data-a="stepStart" data-id="${id}">Βήμα βήμα</button>`:''}<button class="btn ghost" type="button" data-a="guideEdit" data-id="${id}">Επεξεργασία</button><button class="btn ghost" type="button" data-a="guideShare" data-id="${id}">Κοινοποίηση</button></div>`);}
+  <div class="actions">${g.lib?`<button class="btn ghost sm" type="button" data-a="guideCopy" data-id="${id}">Αντιγραφή για αλλαγές</button><button class="btn ghost sm" type="button" data-a="guideHide" data-id="${id}">Απόκρυψη</button>`:`<button class="btn ghost sm" type="button" data-a="guideEdit" data-id="${id}">Επεξεργασία</button>`}<button class="btn ghost sm" type="button" data-a="guideShare" data-id="${id}">Κοινοποίηση</button></div>
+  <div class="actions">${S.length?`<button class="btn grow" type="button" data-a="stepStart" data-id="${id}">Βήμα βήμα</button>`:''}<button class="btn ghost" type="button" data-a="guideDone" data-id="${id}">✓ Το έκανα</button></div>`);}
 function guideEdit(id,pre){const g=id?D.guides[id]:(pre||{});if(!g)return;
   openSheet(`<h3>${id?'Επεξεργασία οδηγού':'Νέος οδηγός'}</h3>
   <label class="f"><span>Τίτλος</span><input type="text" id="gTitle" value="${esc(g.title||'')}" placeholder="π.χ. Αλλαγή φλάντζας μπαταρίας"></label>
+  <div class="g2"><label class="f"><span>Κατηγορία</span><select id="gCat">${Object.entries(GCAT).map(([k,c])=>`<option value="${k}"${k===(g.cat||'other')?' selected':''}>${c[0]} ${c[1]}</option>`).join('')}</select></label>
+   <label class="f"><span>Χρόνος</span><input type="text" id="gTime" value="${esc(g.time||'')}" placeholder="π.χ. 30′"></label></div>
+  <div class="f"><span>Δυσκολία</span>${segBtns('lv',[['1','Εύκολο'],['2','Μέτριο'],['3','Δύσκολο']],String(g.level||1))}</div>
   <label class="f"><span>Τι χρειάζεται</span><input type="text" id="gNeed" value="${esc(g.need||'')}" placeholder="π.χ. γαλλικό κλειδί, φλάντζα 1/2&quot;, τεφλόν"></label>
-  <label class="f"><span>Βήματα (ένα σε κάθε γραμμή)</span><textarea id="gSteps" style="min-height:180px" placeholder="Κλείνω τον γενικό διακόπτη νερού&#10;Ξεβιδώνω τη λαβή&#10;…">${esc(g.steps||'')}</textarea></label>
+  <label class="f"><span>⚠️ Ασφάλεια</span><input type="text" id="gSafety" value="${esc(g.safety||'')}" placeholder="π.χ. κλείνω τον γενικό διακόπτη"></label>
+  <label class="f"><span>Βήματα: ένα σε κάθε γραμμή· γραμμή που αρχίζει με «>» είναι συμβουλή ή «γιατί» για το από πάνω βήμα</span><textarea id="gSteps" style="min-height:200px" placeholder="Κλείνω τον γενικό διακόπτη νερού&#10;> Ανοίγω τη βρύση να δω ότι έκλεισε&#10;Ξεβιδώνω τη λαβή&#10;…">${esc(g.steps||'')}</textarea></label>
+  <label class="f"><span>🎓 Τι μαθαίνω</span><input type="text" id="gLearn" value="${esc(g.learn||'')}"></label>
+  <label class="f"><span>❌ Συνήθη λάθη</span><input type="text" id="gMist" value="${esc(g.mistakes||'')}"></label>
+  <label class="f"><span>📞 Πότε καλώ τεχνίτη</span><input type="text" id="gPro" value="${esc(g.pro||'')}"></label>
   <label class="f"><span>Σημειώσεις</span><textarea id="gNote" placeholder="Προσοχή σε…, τι έμαθα">${esc(g.note||'')}</textarea></label>
+  <label class="f"><span>Πηγή</span><input type="text" id="gSrc" value="${esc(g.src||'')}" placeholder="σύνδεσμος ή «από τον μάστορα της γειτονιάς»"></label>
   <div class="actions"><button class="btn grow" type="button" data-a="guideSave" data-id="${id||''}" data-from="${esc((pre&&pre.from)||'')}">Αποθήκευση</button>${id?`<button class="btn warn" type="button" data-a="guideDel" data-id="${id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
-/* Βήμα βήμα: σε όλη την οθόνη, η οθόνη του κινητού μένει αναμμένη. */
+function guideText(g){const S=stepsOf(g);return [`📘 ${g.title}`,g.safety?'⚠️ '+g.safety:'',g.need?'Χρειάζεται: '+g.need:'',...S.map((s,i)=>`${i+1}. ${s.t}${s.tip?` (${s.tip})`:''}`),g.mistakes?'Συνήθη λάθη: '+g.mistakes:'',g.pro?'Πότε τεχνίτης: '+g.pro:'',g.note||''].filter(Boolean).join('\n');}
+
+/* ---- Επικόλληση: οδηγίες από οποιαδήποτε σελίδα → οδηγός (χωρίς internet) ---- */
+const PZ_JUNK=/^(διαφημιση|advertisement|sponsored|share|κοινοποιηση|print|εκτυπωση|σχολια|comments?|διαβαστε (επισης|ακομα)|read more|related|σχετικα)$/;
+const PZ_HEAD={need:/^(υλικα|εργαλεια|τι (θα )?χρειαζε(σ|τ)(τε|αι)|θα χρειαστει(τε|σ)|χρειαζεσ(τε)?|you('|’)?ll need|what you('|’)?ll need|what you need|tools|materials|parts|supplies)( και [α-ω ]+)?$/,
+  safety:/^(προσοχη|ασφαλεια|κινδυνοσ|προειδοποιηση|warning|caution|safety|danger)$/,steps:/^(βηματα|οδηγιεσ|διαδικασια|τροποσ|πωσ (το|θα το) κανω|steps|instructions|directions|method)$/};
+const PZ_NUM=/^\s*(?:(?:β[ηή]μα|step)\s*\d+\s*[:.)\-–]?|\d{1,2}\s*[.)]|\d{1,2}\s+[-–:])\s*/i;
+const PZ_BUL=/^\s*[-•*·▪–]\s+/;
+const PZ_TIP=/^(συμβουλη|tip|σημειωση|note|γιατι|why)\s*:/;
+const PZ_SAFEIN=/^(προσοχη|ασφαλεια|warning|caution|κινδυνοσ)\s*[:!]/;
+function parsePasted(raw){raw=String(raw||'');const m=raw.match(/https?:\/\/[^\s)]+/),src=m?m[0].replace(/[.,;]+$/,''):'';
+  const lines=raw.replace(/\r/g,'').replace(/https?:\/\/[^\s)]+/g,'').split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>1&&!PZ_JUNK.test(norm(s).replace(/[:.!]$/,'')));
+  const numbered=lines.some(l=>PZ_NUM.test(l)),out={title:'',need:[],safety:[],steps:[]};let mode='steps',bare=false;
+  lines.forEach((l,i)=>{const n=norm(l).replace(/[:.!]+$/,'').trim(),last=out.steps[out.steps.length-1];
+    if(i===0&&lines.length>1&&!PZ_NUM.test(l)&&!PZ_BUL.test(l)&&l.length<=90&&!Object.values(PZ_HEAD).some(r=>r.test(n))){out.title=l.replace(/[:.]$/,'');return;}
+    const hd=l.length<=45&&Object.entries(PZ_HEAD).find(([,r])=>r.test(n));if(hd){mode=hd[0];return;}
+    if(/^(βημα|step)\s*\d+$/.test(n)){mode='steps';bare=true;return;}
+    if(mode!=='steps'&&/^(βημα|step)\s*\d+/.test(n))mode='steps';
+    if(PZ_SAFEIN.test(n)){out.safety.push(l.replace(/^[^:!]*[:!]\s*/,''));return;}
+    if(PZ_TIP.test(n)){const t=l.replace(/^[^:]*:\s*/,'');if(last)last.tip.push(t);else out.safety.push(t);return;}
+    if(mode==='need'){out.need.push(l.replace(PZ_BUL,'').replace(PZ_NUM,'').replace(/[.;,]$/,''));return;}
+    if(mode==='safety'){out.safety.push(l.replace(PZ_BUL,''));return;}
+    const isStep=bare||!numbered||PZ_NUM.test(l);
+    if(isStep||!last){out.steps.push({t:l.replace(PZ_NUM,'').replace(PZ_BUL,''),tip:[]});bare=false;}else last.tip.push(l.replace(PZ_BUL,''));});
+  /* Ένα μεγάλο κομμάτι χωρίς αρίθμηση: χωρίζεται σε προτάσεις. */
+  if(out.steps.length===1&&out.steps[0].t.length>160){const parts=out.steps[0].t.split(/(?<=[.!;])\s+(?=[Α-ΩΆ-ΏA-Z0-9])/).map(s=>s.trim()).filter(Boolean);if(parts.length>1)out.steps=parts.map(t=>({t,tip:[]}));}
+  return{title:out.title,need:out.need.join(', '),safety:out.safety.join(' '),src,
+    steps:out.steps.filter(s=>s.t).map(s=>s.t+(s.tip.length?'\n> '+s.tip.join(' '):'')).join('\n')};}
+const CAT_WORDS={plumb:/βρυσ|σιφων|λεκαν|καζανακ|υδραυλ|σωλην|αποχετευσ|μπαταρια (κουζινασ|μπανιου)|θερμοσιφ|ντουσ/,elec:/πριζ|διακοπτ|καλωδι|ηλεκτρ|ασφαλει|ρελε|φωτιστικ|λαμπ/,
+  wood:/ξυλ|ντουλαπ|μεντεσ|συρταρ|ραφι|επιπλ|πορτα/,wall:/τοιχ|βαψ|στοκ|χρωμα|σοβα|ταβαν/,seal:/σιλικον|αρμο|μονωσ|υγρασι|μουχλ/,
+  appl:/πλυντηρ|ψυγει|κλιματιστ|φουρν|απορροφητηρ|συσκευ/,ride:/αυτοκινητ|ελαστικ|ποδηλατ|σαμπρελ|μηχανακ|λαδια μηχανησ/,tools:/σκουρι|ακονισ|εργαλει/};
+function guessCat(text){const n=norm(text);let best='other',bn=0;for(const [k,r] of Object.entries(CAT_WORDS)){const c=(n.match(new RegExp(r.source,'g'))||[]).length;if(c>bn){bn=c;best=k;}}return best;}
+function pasteSheet(text,src){openSheet(`<h3>Επικόλληση οδηγού</h3>
+  <p class="small muted" style="margin-top:0">Αντέγραψε τις οδηγίες από οποιαδήποτε σελίδα και επικόλλησέ τες εδώ (ή διάλεξε κείμενο στον browser → Κοινοποίηση → Μαστορέματα). Η εφαρμογή βρίσκει τίτλο, υλικά, προσοχή και βήματα· μετά τα διορθώνεις. Για δική σου χρήση: κράτα τον σύνδεσμο της πηγής.</p>
+  <label class="f"><span>Οδηγίες</span><textarea id="pzText" style="min-height:220px" placeholder="Επικόλληση εδώ…">${esc(text||'')}</textarea></label>
+  <label class="f"><span>Σύνδεσμος πηγής (προαιρετικά)</span><input type="text" id="pzSrc" value="${esc(src||'')}" placeholder="https://…"></label>
+  <div class="actions"><button class="btn grow" type="button" data-a="pasteGo">Μετατροπή σε οδηγό</button><button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
+function pasteToGuide(text,src){const p=parsePasted(text);if(!p.steps)return false;guideEdit(null,Object.assign(p,{src:src||p.src,cat:guessCat(text),title:p.title||''}));return true;}
+/* Κείμενο που κοινοποιήθηκε από άλλη εφαρμογή (π.χ. επιλεγμένο κείμενο στον Chrome). */
+window.__onShared=(text,subject)=>{text=String(text||'').trim();subject=String(subject||'').trim();if(!text)return;closePhoto();if(stp)stepClose();
+  if(/^https?:\/\/\S+$/.test(text)){pasteSheet('',text);toast('Ήρθε μόνο ο σύνδεσμος. Διάλεξε το κείμενο στη σελίδα και κοινοποίησέ το, ή αντέγραψέ το εδώ.');return;}
+  const full=subject&&!text.startsWith(subject)?subject+'\n'+text:text;if(!pasteToGuide(full,''))pasteSheet(full,'');};
+
+/* ---- Βήμα βήμα: σε όλη την οθόνη, η οθόνη του κινητού μένει αναμμένη. Πρώτα «Πριν ξεκινήσεις» (ασφάλεια, υλικά). ---- */
 let stp=null;
-function stepDraw(){const S=stepsOf(D.guides[stp.id]||{});if(!S.length){stepClose();return;}stp.i=Math.max(0,Math.min(stp.i,S.length-1));
-  $('#stTitle').textContent=D.guides[stp.id].title;$('#stNum').textContent=`Βήμα ${stp.i+1} από ${S.length}`;$('#stText').textContent=S[stp.i];
-  $('#stPrev').disabled=stp.i===0;$('#stNext').textContent=stp.i===S.length-1?'Τέλος':'Επόμενο';}
+function stepScreens(g){const pre=[g.safety?'⚠️ '+g.safety:'',g.need?'🧰 Χρειάζεται: '+g.need:''].filter(Boolean);
+  return (pre.length?[{h:'Πριν ξεκινήσεις',t:pre.join('\n\n'),tip:''}]:[]).concat(stepsOf(g));}
+function stepDraw(){const g=guideOf(stp.id),L=g?stepScreens(g):[],n=g?stepsOf(g).length:0;if(!n){stepClose();return;}stp.i=Math.max(0,Math.min(stp.i,L.length-1));
+  const off=L.length-n,s=L[stp.i],tp=$('#stTip');
+  $('#stTitle').textContent=g.title;$('#stNum').textContent=s.h||`Βήμα ${stp.i-off+1} από ${n}`;$('#stText').textContent=s.t;tp.textContent=s.tip?'💡 '+s.tip:'';tp.hidden=!s.tip;
+  $('#stPrev').disabled=stp.i===0;$('#stNext').textContent=stp.i===L.length-1?'Τέλος':stp.i<off?'Ξεκινάμε':'Επόμενο';}
 function stepOpen(id){closeSheet();stp={id,i:0};$('#step').classList.add('on');setWake(true);stepDraw();}
 function stepClose(){stp=null;$('#step').classList.remove('on');setWake(false);}
 function setWake(on){if(NB){try{NB.keepScreenOn(!!on);}catch(e){}}}
+/* Μετά από έναν οδηγό: τι έμαθα, ορόσημο στη δεξιότητα της κατηγορίας, προαιρετικά και επισκευή. */
+function skillForCat(cat){return Object.values(D.skills).find(s=>s.cat===cat)||Object.values(D.skills).find(s=>norm(s.name)===norm(GCAT[cat]?GCAT[cat][1]:''))||null;}
+function doneSheet(gid){const g=guideOf(gid);if(!g)return;const n=doneOf(gid).length,cat=g.cat||'other',sk=skillForCat(cat);
+  openSheet(`<h3>${n?'Ακόμα μία φορά! 💪':'Μπράβο, τα κατάφερες! 🎉'}</h3><p style="margin-top:-6px">«${esc(g.title)}»${n?` · ${n+1}η φορά`:' · πρώτη φορά'}</p>
+  <label class="f"><span>Τι έμαθα / τι θα έκανα αλλιώς την επόμενη φορά</span><textarea id="dNote" placeholder="π.χ. η φλάντζα ήταν 3/8, όχι 1/2· το νερό κλείνει από τον διακόπτη στο μπάνιο"></textarea></label>
+  <label class="toggle"><input type="checkbox" id="dSkill"${n?'':' checked'}> Ορόσημο στη δεξιότητα «${esc(sk?sk.name:catOf(g)[1])}»${sk?'':' (θα δημιουργηθεί)'}</label>
+  <label class="toggle"><input type="checkbox" id="dRepair"> Γράψ’ το και ως επισκευή (για φωτογραφίες, ανταλλακτικά, κόστος)</label>
+  <div class="actions"><button class="btn grow" type="button" data-a="doneSave" data-id="${gid}">Αποθήκευση</button><button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
 
 /* ============ ΔΕΞΙΟΤΗΤΕΣ ============ */
 const SKST=[['learning','Μαθαίνω'],['later','Κάποια στιγμή'],['done','Τα έμαθα']];
 const msSorted=s=>(s.ms||[]).slice().sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+/* Οδηγοί για εξάσκηση μιας δεξιότητας: όσοι έχουν την κατηγορία της, από τον πιο εύκολο. */
+const practiceOf=s=>s&&s.cat?allGuides().filter(g=>(g.cat||'other')===s.cat).sort(byLevel):[];
 function vSkills(){const all=Object.values(D.skills),f=ui.skillSt||'learning';
   let h=`<button class="btn add" type="button" data-a="skillNew">+ Νέα δεξιότητα</button>`;
-  if(!all.length)return h+emptyMsg('Καμία δεξιότητα ακόμα','Τι μαθαίνεις (π.χ. συγκόλληση, πλακάκι, ηλεκτρολογικά); Γράψε ορόσημα με ημερομηνία: «πρώτη ραφή που κράτησε».');
+  if(!all.length)return h+emptyMsg('Καμία δεξιότητα ακόμα','Τι μαθαίνεις (π.χ. υδραυλικά, συγκόλληση, πλακάκι); Δώσε της κατηγορία οδηγών και θα βλέπεις τι να δοκιμάσεις μετά, από το πιο εύκολο. Όταν ολοκληρώνεις έναν οδηγό, το ορόσημο γράφεται μόνο του.');
   h+=segBtnsUi('skillSt',SKST.map(([k,l])=>{const n=all.filter(s=>(s.status||'learning')===k).length;return [k,l+(n?` (${n})`:'')];}),f);
   const L=all.filter(s=>(s.status||'learning')===f).sort(byName);
   if(!L.length)return h+emptyMsg('Τίποτα εδώ','Δεν υπάρχει δεξιότητα σε αυτή την κατάσταση.');
-  return h+L.map(s=>{const m=msSorted(s),last=m[0];return `<button class="item" type="button" data-a="skillOpen" data-id="${s.id}"><span class="grow"><b>${esc(s.name)}</b><span class="sub">${m.length?`${m.length} ${plural(m.length,'ορόσημο','ορόσημα')} · τελευταίο: ${esc(last.t)} (${rel(last.d)})`:'Χωρίς ορόσημα ακόμα'}</span></span></button>`;}).join('');}
-function skillView(id){const s=D.skills[id];if(!s)return;const m=msSorted(s);
+  return h+L.map(s=>{const m=msSorted(s),last=m[0],P=practiceOf(s),pd=P.filter(g=>doneOf(g.id).length).length;
+    return `<button class="item" type="button" data-a="skillOpen" data-id="${s.id}"><span class="grow"><b>${esc(s.name)}</b><span class="sub">${P.length?`📚 ${pd}/${P.length} οδηγοί · `:''}${m.length?`${m.length} ${plural(m.length,'ορόσημο','ορόσημα')} · τελευταίο: ${esc(last.t)} (${rel(last.d)})`:'Χωρίς ορόσημα ακόμα'}</span></span></button>`;}).join('');}
+function skillView(id){const s=D.skills[id];if(!s)return;const m=msSorted(s),P=practiceOf(s),next=P.find(g=>!doneOf(g.id).length);
   openSheet(`<h3>${esc(s.name)}</h3>${segBtns('sk',SKST,s.status||'learning').replace('<div class="seg"','<div class="seg" data-skill="'+id+'"')}
   ${s.note?`<div class="pre muted" style="margin-bottom:10px">${esc(s.note)}</div>`:''}
+  ${P.length?`<b>📚 Εξάσκηση</b> <span class="small muted">${P.filter(g=>doneOf(g.id).length).length} από ${P.length}</span>
+   ${next?`<div class="box soft" style="margin:6px 0">Επόμενο να δοκιμάσεις: <button class="link" type="button" data-a="guideOpen" data-id="${next.id}">${esc(next.title)}</button> ${lvlTag(next.level)}</div>`:'<div class="box soft" style="margin:6px 0">Τα έκανες όλα! Γράψε δικούς σου οδηγούς για τα επόμενα.</div>'}
+   <div id="prList" style="margin:4px 0 12px">${P.map(g=>{const k=doneOf(g.id).length;return `<div class="ms"><span class="d" style="width:34px">${k?'✓'+k:'○'}</span><span class="grow"><button class="link" type="button" data-a="guideOpen" data-id="${g.id}">${esc(g.title)}</button></span>${g.level?lvlTag(g.level):''}</div>`;}).join('')}</div>`:''}
   <b>Ορόσημα</b><div id="msList" style="margin:4px 0 10px">${m.length?m.map(x=>`<div class="ms"><span class="d">${dFmt(x.d)}</span><span class="grow">${esc(x.t)}</span><button class="x" type="button" data-a="msDel" data-id="${id}" data-m="${x.id}" aria-label="Διαγραφή">×</button></div>`).join(''):'<p class="muted small">Κανένα ακόμα.</p>'}</div>
   <label class="f"><span>Νέο ορόσημο</span><input type="text" id="msText" data-enter="msAdd" placeholder="π.χ. Πρώτη ραφή που κράτησε"></label>
   <div class="row" style="margin-bottom:6px"><input type="date" id="msDate" value="${today()}" style="flex:1"><button class="btn" type="button" data-a="msAdd" data-id="${id}">Προσθήκη</button></div>
   <div class="actions"><button class="btn ghost grow" type="button" data-a="skillEdit" data-id="${id}">Επεξεργασία</button><button class="btn ghost" type="button" data-a="close">Κλείσιμο</button></div>`);}
 function skillEdit(id){const s=id?D.skills[id]:{};if(!s)return;
   openSheet(`<h3>${id?'Επεξεργασία':'Νέα δεξιότητα'}</h3>
-  <label class="f"><span>Τι μαθαίνω</span><input type="text" id="sName" value="${esc(s.name||'')}" placeholder="π.χ. Ηλεκτροσυγκόλληση"></label>
+  <label class="f"><span>Τι μαθαίνω</span><input type="text" id="sName" value="${esc(s.name||'')}" placeholder="π.χ. Υδραυλικά"></label>
+  <label class="f"><span>Οδηγοί για εξάσκηση</span><select id="sCat"><option value="">—</option>${Object.entries(GCAT).map(([k,c])=>`<option value="${k}"${k===s.cat?' selected':''}>${c[0]} ${c[1]}</option>`).join('')}</select></label>
   <label class="f"><span>Σημειώσεις</span><textarea id="sNote" placeholder="Από πού μαθαίνω, τι θέλω να καταφέρω">${esc(s.note||'')}</textarea></label>
   <div class="actions"><button class="btn grow" type="button" data-a="skillSave" data-id="${id||''}">Αποθήκευση</button>${id?`<button class="btn warn" type="button" data-a="skillDel" data-id="${id}">Διαγραφή</button>`:''}<button class="btn ghost" type="button" data-a="close">Άκυρο</button></div>`);}
 
@@ -441,7 +765,7 @@ let searchQ='',prevTab='repairs';
 function search(q){const n=norm(q);if(n.length<2)return [];const words=n.split(' '),hit=(...f)=>{const t=norm(f.join(' '));return words.every(w=>t.includes(w));},out=[];
   const T=Object.values(D.tools).filter(t=>hit(t.name,t.place,t.note,t.lentTo)).sort(byName);if(T.length)out.push(['Εργαλεία',T.map(t=>`<button class="item" type="button" data-a="toolOpen" data-id="${t.id}"><span class="grow"><b>${esc(t.name)}</b><span class="sub">${condTag(t)}${t.place?' · '+esc(t.place):''}</span></span></button>`)]);
   const R=Object.values(D.repairs).filter(r=>hit(r.title,r.how,(r.parts||[]).map(l=>l.name).join(' '))).sort((a,b)=>(b.d||'').localeCompare(a.d||''));if(R.length)out.push(['Επισκευές',R.map(repairItem)]);
-  const G=Object.values(D.guides).filter(g=>hit(g.title,g.need,g.steps,g.note)).sort(byName);if(G.length)out.push(['Οδηγοί',G.map(g=>`<button class="item" type="button" data-a="guideOpen" data-id="${g.id}"><span class="grow"><b>${esc(g.title)}</b><span class="sub">${stepsOf(g).length} βήματα</span></span></button>`)]);
+  const G=allGuides().filter(g=>hit(g.title,g.need,g.steps,g.note,g.learn,g.safety,g.mistakes)).sort(byName);if(G.length)out.push(['Οδηγοί',G.map(guideItem)]);
   const S=Object.values(D.skills).filter(s=>hit(s.name,s.note,(s.ms||[]).map(m=>m.t).join(' '))).sort(byName);if(S.length)out.push(['Δεξιότητες',S.map(s=>`<button class="item" type="button" data-a="skillOpen" data-id="${s.id}"><span class="grow"><b>${esc(s.name)}</b></span></button>`)]);
   const P=Object.values(D.parts).filter(p=>hit(p.name,p.place,p.shop,p.note)).sort(byName);if(P.length)out.push(['Ανταλλακτικά',P.map(p=>`<button class="item" type="button" data-a="partOpen" data-id="${p.id}"><span class="grow"><b>${esc(p.name)}</b><span class="sub">${fmtN(+p.qty||0)} ${esc(p.unit||'τεμ.')}${p.place?' · '+esc(p.place):''}</span></span></button>`)]);
   return out;}
@@ -494,6 +818,7 @@ function vSettings(){const s=D.settings,t=today(),folder=NB?NB.backupFolderName(
     <div class="actions"><button class="btn ghost sm" type="button" data-a="pickFolder">${folder?'Άλλος φάκελος':'Επιλογή φακέλου'}</button>${folder?'<button class="btn ghost sm" type="button" data-a="autoNow">Αντίγραφο τώρα</button>':''}</div>`:''}
    <div class="actions"><button class="btn" type="button" data-a="backup">Αποθήκευση αντιγράφου</button>${NB?`<button class="btn ghost" type="button" data-a="backupDrive">Στείλε στο Drive</button><button class="btn ghost" type="button" data-a="restoreNative">Επαναφορά</button>`:`<label class="btn ghost" style="cursor:pointer;display:inline-flex;align-items:center">Επαναφορά<input type="file" accept=".json,application/json" data-ch="restore" hidden></label>`}</div>
    ${sf?`<p class="small" style="margin:10px 0 0"><button class="link" type="button" data-a="undoSafety">Αναίρεση της ${sf.why==='wipe'?'διαγραφής':'επαναφοράς'} της ${dFmt(sf.day)}</button></p>`:''}</div>
+  ${Object.keys(D.hiddenLib).length?`<div class="card"><h3>Έτοιμοι οδηγοί</h3><p class="small muted" style="margin-top:0">Κρυμμένοι: ${Object.keys(D.hiddenLib).length}.</p><button class="btn ghost sm" type="button" data-a="libShowAll">Εμφάνιση όλων</button></div>`:''}
   <div class="card"><h3>Διαγραφή</h3><button class="btn warn" type="button" data-a="wipe">Διαγραφή όλων των δεδομένων</button></div>
   <p class="small muted">Μαστορέματα ${NB?'· Android '+esc(NB.appVersion()):'· έκδοση browser'} · λειτουργεί χωρίς σύνδεση</p>`;}
 
@@ -550,28 +875,48 @@ const A={
  repairDel:el=>{const r=D.repairs[el.dataset.id];if(!r)return;if(!confirm(`Διαγραφή της επισκευής «${r.title}»;`))return;const u=snapUndo();stockDelta(r,null);delete D.repairs[r.id];closeSheet();commit();toast('Η επισκευή διαγράφηκε',u);},
  repairDone:el=>{const r=D.repairs[el.dataset.id];if(!r)return;D.repairs[r.id]=Object.assign({},r,{status:'done'});commit();repairView(r.id);toast('Ολοκληρώθηκε');},
  repairShare:el=>{const r=D.repairs[el.dataset.id];if(!r)return;const t=repairText(r);if(NB)NB.share(t);else if(navigator.share)navigator.share({text:t}).catch(()=>{});else{try{navigator.clipboard.writeText(t);toast('Αντιγράφηκε');}catch(e){}}},
- guideFromRepair:el=>{const r=D.repairs[el.dataset.id];if(!r)return;guideEdit(null,{title:r.title,steps:String(r.how||'').split('\n').map(s=>s.replace(/^\s*(\d+[.)]|[-•*])\s*/,'').trim()).filter(Boolean).join('\n'),need:(r.parts||[]).map(l=>l.name).join(', '),from:r.id});},
+ guideFromRepair:el=>{const r=D.repairs[el.dataset.id];if(!r)return;guideEdit(null,{title:r.title,cat:guessCat(r.title+' '+(r.how||'')),steps:String(r.how||'').split('\n').map(s=>s.replace(/^\s*(\d+[.)]|[-•*])\s*/,'').trim()).filter(Boolean).join('\n'),need:(r.parts||[]).map(l=>l.name).join(', '),from:r.id});},
  /* οδηγοί */
  guideNew:()=>guideEdit(null),
  guideOpen:el=>guideView(el.dataset.id),
  guideEdit:el=>guideEdit(el.dataset.id),
+ gCat:el=>{ui.gCat=el.dataset.v;render();},
+ guidePaste:()=>pasteSheet('',''),
+ pasteGo:()=>{const t=$('#pzText').value;if(!t.trim()){toast('Επικόλλησε πρώτα τις οδηγίες');return;}if(!pasteToGuide(t,val('pzSrc')))toast('Δεν βρέθηκαν βήματα. Έλεγξε το κείμενο.');},
  guideSave:el=>{const title=val('gTitle');if(!title){toast('Γράψε τίτλο');return;}const id=el.dataset.id||uid(),old=D.guides[id]||{created:Date.now()};
-   D.guides[id]=Object.assign({},old,{id,title,need:val('gNeed'),steps:$('#gSteps').value.split('\n').map(s=>s.trim()).filter(Boolean).join('\n'),note:val('gNote'),updated:today()});
+   D.guides[id]=Object.assign({},old,{id,title,cat:val('gCat')||'other',level:+segVal('lv')||1,time:val('gTime'),need:val('gNeed'),safety:val('gSafety'),
+     steps:$('#gSteps').value.split('\n').map(s=>s.trim()).filter(Boolean).join('\n'),learn:val('gLearn'),mistakes:val('gMist'),pro:val('gPro'),note:val('gNote'),src:val('gSrc'),updated:today()});
    const from=el.dataset.from&&D.repairs[el.dataset.from];if(from&&!from.guide)D.repairs[from.id]=Object.assign({},from,{guide:id});
    commit();guideView(id);toast(el.dataset.id?'Αποθηκεύτηκε':'Ο οδηγός δημιουργήθηκε');},
  guideDel:el=>{const g=D.guides[el.dataset.id];if(!g)return;const u=snapUndo();for(const r of Object.values(D.repairs))if(r.guide===g.id){D.repairs[r.id]=Object.assign({},r);delete D.repairs[r.id].guide;}
    delete D.guides[g.id];closeSheet();commit();toast('Ο οδηγός διαγράφηκε',u);},
- guideShare:el=>{const g=D.guides[el.dataset.id];if(!g)return;const t=[`📘 ${g.title}`,g.need?'Χρειάζεται: '+g.need:'',...stepsOf(g).map((s,i)=>`${i+1}. ${s}`),g.note||''].filter(Boolean).join('\n');if(NB)NB.share(t);else if(navigator.share)navigator.share({text:t}).catch(()=>{});},
+ /* Έτοιμος → δικός μου: αντίγραφο που αλλάζει ελεύθερα· ο έτοιμος κρύβεται και το ιστορικό του περνάει στο αντίγραφο. */
+ guideCopy:el=>{const g=LIBMAP[el.dataset.id];if(!g)return;const nid=uid(),{lib,id,...rest}=g;
+   D.guides[nid]=Object.assign({},rest,{id:nid,src:'Έτοιμος οδηγός των Μαστορεμάτων',created:Date.now(),updated:today()});
+   for(const x of Object.values(D.done))if(x.g===g.id)D.done[x.id]=Object.assign({},x,{g:nid});
+   for(const r of Object.values(D.repairs))if(r.guide===g.id)D.repairs[r.id]=Object.assign({},r,{guide:nid});
+   D.hiddenLib[g.id]=true;commit();guideEdit(nid);toast('Έγινε δικός σου οδηγός');},
+ guideHide:el=>{if(!LIBMAP[el.dataset.id])return;const u=snapUndo();D.hiddenLib[el.dataset.id]=true;closeSheet();commit();toast('Ο οδηγός κρύφτηκε (επαναφορά από τις Ρυθμίσεις)',u);},
+ libShowAll:()=>{D.hiddenLib={};commit();toast('Φαίνονται όλοι οι έτοιμοι οδηγοί');},
+ guideShare:el=>{const g=guideOf(el.dataset.id);if(!g)return;const t=guideText(g);if(NB)NB.share(t);else if(navigator.share)navigator.share({text:t}).catch(()=>{});},
+ guideDone:el=>doneSheet(el.dataset.id),
+ doneSave:el=>{const gid=el.dataset.id,g=guideOf(gid);if(!g)return;const note=val('dNote'),first=!doneOf(gid).length,cat=g.cat||'other',did=uid(),ms=$('#dSkill').checked,rep=$('#dRepair').checked;
+   D.done[did]={id:did,g:gid,d:today(),note,created:Date.now()};
+   if(ms){let s=skillForCat(cat);if(!s){const sid=uid();s=D.skills[sid]={id:sid,name:catOf(g)[1],cat,status:'learning',ms:[],created:Date.now()};}else if(!s.cat)s.cat=cat;
+     s.ms=(s.ms||[]).concat([{id:uid(),t:(first?'Πρώτη φορά: ':'')+g.title,d:today()}]);}
+   commit();if(rep){repairEdit(null,null,{title:g.title,how:note,guide:gid});return;}
+   closeSheet();toast(ms?`Μπράβο! Γράφτηκε ορόσημο στα «${skillForCat(cat).name}»`:'Καταγράφηκε');},
  stepStart:el=>stepOpen(el.dataset.id),
  stepClose:()=>stepClose(),
  stepPrev:()=>{if(!stp)return;stp.i--;stepDraw();},
- stepNext:()=>{if(!stp)return;const n=stepsOf(D.guides[stp.id]||{}).length;if(stp.i>=n-1){stepClose();toast('Τέλος του οδηγού');return;}stp.i++;stepDraw();},
+ stepNext:()=>{if(!stp)return;const g=guideOf(stp.id),n=g?stepScreens(g).length:0;if(stp.i>=n-1){const id=stp.id;stepClose();doneSheet(id);return;}stp.i++;stepDraw();},
  /* δεξιότητες */
  skillNew:()=>skillEdit(null),
  skillOpen:el=>skillView(el.dataset.id),
  skillEdit:el=>skillEdit(el.dataset.id),
  skillSave:el=>{const name=val('sName');if(!name){toast('Γράψε τι μαθαίνεις');return;}const id=el.dataset.id||uid(),old=D.skills[id]||{created:Date.now(),status:ui.skillSt||'learning',ms:[]};
-   D.skills[id]=Object.assign({},old,{id,name,note:val('sNote')});commit();skillView(id);},
+   const cat=val('sCat')||(Object.entries(GCAT).find(([,c])=>norm(c[1])===norm(name))||[])[0]||'';
+   D.skills[id]=Object.assign({},old,{id,name,cat,note:val('sNote')});commit();skillView(id);},
  skillDel:el=>{const s=D.skills[el.dataset.id];if(!s)return;const u=snapUndo();delete D.skills[s.id];closeSheet();commit();toast('Διαγράφηκε: '+s.name,u);},
  msAdd:el=>{const id=(el&&el.dataset&&el.dataset.id)||sheet.querySelector('[data-a="msAdd"][data-id]')?.dataset.id,s=D.skills[id],t=val('msText');if(!s)return;if(!t){toast('Γράψε το ορόσημο');return;}
    s.ms=(s.ms||[]).concat([{id:uid(),t,d:val('msDate')||today()}]);commit();skillView(id);toast('Το ορόσημο γράφτηκε');},

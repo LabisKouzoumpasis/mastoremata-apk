@@ -40,6 +40,8 @@ class MainActivity : Activity() {
     private var pageReady = false
     /** Φωτογραφίες που ήρθαν πριν φορτώσει η σελίδα (π.χ. το Android έκλεισε την εφαρμογή όσο ήταν ανοιχτή η κάμερα). */
     private var pendingPhotos: List<String>? = null
+    /** Κείμενο που κοινοποιήθηκε από άλλη εφαρμογή, μέχρι να φορτώσει η σελίδα: [κείμενο, θέμα]. */
+    private var pendingShare: Array<String>? = null
     /** Το αρχείο όπου γράφει η κάμερα (κρατιέται και αν ξαναδημιουργηθεί η οθόνη). */
     private var camName: String? = null
 
@@ -71,11 +73,35 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView, url: String) {
                 pageReady = true
                 deliverPhotos()
+                deliverShare()
             }
         }
         web.addJavascriptInterface(Bridge(this), "AndroidBridge")
         web.loadUrl("file:///android_asset/index.html")
         setBars(isSystemDark())
+        handleShare(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShare(intent)
+    }
+
+    /** Κείμενο που μοιράστηκε από άλλη εφαρμογή (π.χ. οδηγίες επιλεγμένες στον browser). */
+    private fun handleShare(i: Intent?) {
+        if (i == null || i.action != Intent.ACTION_SEND) return
+        val text = i.getStringExtra(Intent.EXTRA_TEXT) ?: return
+        pendingShare = arrayOf(text, i.getStringExtra(Intent.EXTRA_SUBJECT) ?: "")
+        i.action = Intent.ACTION_MAIN
+        deliverShare()
+    }
+
+    private fun deliverShare() {
+        if (!pageReady) return
+        val p = pendingShare ?: return
+        pendingShare = null
+        web.evaluateJavascript("window.__onShared&&window.__onShared(" + JSONObject.quote(p[0]) + "," + JSONObject.quote(p[1]) + ")", null)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

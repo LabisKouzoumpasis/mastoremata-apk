@@ -18,7 +18,7 @@ mastoremata/index.html  ──αντιγραφή──►  mastoremata-apk/app/s
 ```
 app/src/main/java/gr/mastoremata/
   MainActivity.kt  WebView, αρχεία (SAF), κάμερα (ACTION_IMAGE_CAPTURE) και συλλογή (ACTION_PICK_IMAGES / GET_CONTENT),
-                   φάκελος αντιγράφων, κοινοποίηση
+                   φάκελος αντιγράφων, κοινοποίηση· δέχεται κείμενο από άλλες εφαρμογές (ACTION_SEND text/plain → `__onShared`)
   Bridge.kt        Η γέφυρα `window.AndroidBridge` (@JavascriptInterface)· λίστα μεθόδων στο CLAUDE.md του mastoremata
   Db.kt            SQLite (singleton Db.get): records(kind,id,day,data,updated), meta. DB έκδοση 1.
   Photos.kt        Φωτογραφίες στο files/photos: μικραίνουν στα 1600 px, γυρίζουν κατά EXIF, JPEG 82. Ονόματα `Photos.NAME`.
