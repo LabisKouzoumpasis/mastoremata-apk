@@ -27,7 +27,7 @@ app/src/main/java/gr/mastoremata/
   Web.kt           Λήψη σελίδας/φωτογραφίας ΜΟΝΟ όταν ο χρήστης μοιράζεται σύνδεσμο οδηγού (fetchUrl/fetchPhotos στο Bridge):
                    μόνο http/https, ανακατευθύνσεις ≤6, όρια 4 MB κείμενο / 15 MB εικόνα, charset από το Content-Type.
   Updater.kt       Ενημέρωση μέσα από την εφαρμογή (όπως στην Καθημερινότητα): releases/latest χωρίς token από τα
-                   `Updater.REPOS` (mastoremata-apk αν είναι δημόσιο, mastoremata-releases αν υπάρχει), η νεότερη· λήψη
+                   `Updater.REPOS` (mastoremata-apk, δημόσιο· mastoremata-releases αν υπάρξει), η νεότερη· λήψη
                    μόνο APK των δικών μας Releases (`allowedUrl`) και PackageInstaller (UpdateReceiver: επιβεβαίωση/λάθη).
   ShareFiles.kt    ShareProvider (δικός μας μικρός FileProvider): `share/` μόνο ανάγνωση (αντίγραφο προς Drive),
                    `cam/` και εγγραφή (εκεί γράφει η κάμερα). ChooserReceiver (ποια εφαρμογή διαλέχτηκε → `consumeShared`).
@@ -44,10 +44,10 @@ UPDATE_PACKAGES_WITHOUT_USER_ACTION (ενημέρωση). Η κάμερα ανο
   ως `Mastoremata-1.0.<run>.apk` (tag `v1.0.<run>`). versionCode = αριθμός εκτέλεσης.
 - Μυστικά: `KS_BASE64, KS_PASSWORD, KS_ALIAS, KS_KEY_PASSWORD`. Το κλειδί ΔΕΝ μπαίνει στο αποθετήριο (`.gitignore`).
   Χωρίς αυτό το APK υπογράφεται προσωρινά και δεν ενημερώνει την εγκατεστημένη εφαρμογή.
-- **Ενημέρωση μέσα από την εφαρμογή:** το GitHub δίνει τα Releases χωρίς token μόνο σε δημόσια αποθετήρια. Δύο τρόποι:
-  (α) το mastoremata-apk γίνεται δημόσιο (δεν έχει μυστικά· το κλειδί είναι στα secrets), ή (β) όπως η Καθημερινότητα: δημόσιο
-  `mastoremata-releases` (μόνο APK) και μυστικό `APK_REPO_TOKEN` εδώ (token με δικαίωμα Contents: write σε εκείνο· λήγει).
-  Η εφαρμογή ελέγχει και τα δύο. Μέχρι να γίνει ένα από τα δύο, η «Ενημέρωση» λέει «Δεν βρέθηκε έκδοση».
+- **Ενημέρωση μέσα από την εφαρμογή:** το αποθετήριο αυτό είναι **δημόσιο** (από 26/10/2026), ώστε η εφαρμογή να διαβάζει
+  τα Releases χωρίς token. Δεν έχει μυστικά μέσα στον κώδικα· το κλειδί υπογραφής είναι στα secrets. **Ποτέ token ή κλειδί στο
+  αποθετήριο.** (Εναλλακτικά, όπως η Καθημερινότητα: δημόσιο `mastoremata-releases` + μυστικό `APK_REPO_TOKEN`· το build.yml
+  δημοσιεύει εκεί μόνο αν υπάρχει το μυστικό, και η εφαρμογή ελέγχει και τα δύο.)
 
 ## Τεστ
 `cd tools/ktest && gradle test` — μεταγλωττίζει όλο το Kotlin με τις κλάσεις του Android 14 (Robolectric android-all
